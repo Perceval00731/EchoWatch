@@ -74,4 +74,4 @@ TVA au taux de **20%** :
 
 ---
 
-> ✅ **Montant final facturé TTC : 34 122 €**
+> **Montant final facturé TTC : 34 122 €**
