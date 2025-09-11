@@ -51,7 +51,9 @@ EchoWatch est une montre connectée basée sur une carte ESP32-S3-Touch-LCD-1.46
 
 ## 9. Ressources
 - README.md : guide d’installation et configuration
-- docs/chiffrage.md : estimation des coûts
+- docs/Chiffrage_Projet.md : estimation des coûts
+- docs/Documentation_Technique.md : informations techniques
+- docs/Guide_Installation.md : guide d'installation
 
 ## 10. Évolutivité
 Le projet est conçu pour être extensible (ajout de capteurs, nouvelles interfaces, etc.) :
