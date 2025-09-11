@@ -49,10 +49,3 @@
 
 ## Upload
 - Lancer l’upload avec la flèche en haut à gauche.
-
-## Liens
-- [Documentation officielle](https://www.waveshare.com/wiki/ESP32-S3-Touch-LCD-1.46B)
-- [SquareLine Studio](https://squareline.io/)
-- Guide d'installation complet dans le dossier `docs/Guide_Installation.md`
-- Documentation technique dans le dossier `docs/Documentation_Technique.md`
-- Chiffrage du projet dans le dossier `docs/Chiffrage_Projet.md`
