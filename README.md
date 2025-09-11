@@ -38,9 +38,9 @@
 1. Installer la plateforme **ESP32 by Espressif Systems** (version 3.3.0) dans le Boards Manager.
 2. Sélectionner la carte : ESP32-S3-Touch-LCD-1.46.
 3. Installer les bibliothèques nécessaires :
-   - LVGL
-   - ESP32-audio
-   - (Optionnel) MQTT
+   - **LVGL** by kisvegabor version 8.3.10
+   - **ESP32-audioI2S-master** by schreibfaul1 version 2.0.0
+   - **PubSubClient** by Nick O'Leary version 2.8
    - Pour cela, copier-coller les bibliothèques fournies dans le dossier `Documents/Arduino/libraries`.
 4. Vérifier les paramètres dans **Tools**.
 ![Capture d'écran des paramètres de l'outil](ressources/tools.png)
