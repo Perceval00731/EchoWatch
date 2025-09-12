@@ -11,6 +11,7 @@
 #include "ui.h"               // UI LVGL
 #include <PubSubClient.h>     // MQTT
 #include "SD_Card.h"          // Carte SD
+#include "BAT_Driver.h"       // Batterie
 
 
 // ---- Paramétrage WiFi ----
@@ -42,6 +43,9 @@ void connectToWiFi() {
 }
 
 // ---- Callback MQTT ----
+// Modifier ce comportement afin de séparer les actions
+// Exemple: Changer la couleur de fond de l'écran en fonction du message reçu (si le message est une couleur hexadécimale)
+// Peut être prévoir plusieurs topics pour différentes actions (Lumière, Son, "localisation", etc.)
 
 void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   Serial.print("[MQTT] Message reçu sur le topic: ");
