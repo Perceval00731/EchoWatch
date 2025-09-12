@@ -32,11 +32,15 @@ void ui_init( void )
 lv_disp_t *dispp = lv_disp_get_default();
 lv_theme_t *theme = lv_theme_default_init(dispp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), false, LV_FONT_DEFAULT);
 lv_disp_set_theme(dispp, theme);
-ui_Screen1_screen_init();
+ui_HomeScreen_screen_init();
+ui_FindAppScreen_screen_init();
+ui_LightAppScreen_screen_init();
 ui____initial_actions0 = lv_obj_create(NULL);
-lv_disp_load_scr( ui_Screen1);
+lv_disp_load_scr( ui_HomeScreen);
 }
 
 void ui_destroy( void )
-{ui_Screen1_screen_destroy();
+{ui_HomeScreen_screen_destroy();
+ui_FindAppScreen_screen_destroy();
+ui_LightAppScreen_screen_destroy();
 }

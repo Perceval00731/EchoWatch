@@ -1,5 +1,7 @@
 #include "MIC_MSM.h"
 #include "LVGL_Music.h"
+#include "ui.h"
+#include <Arduino.h>
 // English wakeword : Hi ESP！！！！
 // Chinese wakeword : Hi 乐鑫！！！！
 // 英文唤醒词 : Hi ESP！！！！
@@ -16,6 +18,7 @@ enum {
   SR_CMD_BACKLIGHT_IS_BRIGHTEST,
   SR_CMD_BACKLIGHT_IS_DARKEST,
   SR_CMD_PLAY_MUSIC,
+  SR_CMD_SET_GREEN,
 };
 static const sr_cmd_t sr_commands[] = {
   {0, "Turn on the backlight", "TkN nN jc BaKLiT"},                 // English
@@ -23,6 +26,7 @@ static const sr_cmd_t sr_commands[] = {
   {2, "backlight is brightest", "BaKLiT gZ BRiTcST"},               // English
   {3, "backlight is darkest", "BaKLiT gZ DnRKcST"},                 // English
   {4, "play music", "PLd MYoZgK"},                                  // English
+  {5, "set green", "seT gRiN"},                                     // English
 
   // {0, "da kai bei guang", "da kai bei guang"},                   // chinese
   // {1, "guan bi bei guang", "guan bi bei guang"},                 // chinese
@@ -33,6 +37,7 @@ static const sr_cmd_t sr_commands[] = {
 bool play_Music_Flag = 0;
 uint8_t LCD_Backlight_original = 0;
 void Awaken_Event(sr_event_t event, int command_id, int phrase_id) {
+  Serial.println("Awaken Event Recu");
   switch (event) {
     case SR_EVENT_WAKEWORD: 
       if(ACTIVE_TRACK_CNT)
@@ -80,6 +85,12 @@ void Awaken_Event(sr_event_t event, int command_id, int phrase_id) {
       ESP_SR.setMode(SR_MODE_COMMAND);  // Allow for more commands to be given, before timeout
       // ESP_SR.setMode(SR_MODE_WAKEWORD); // Switch back to WakeWord detection
       break;
+    case SR_CMD_SET_GREEN:
+      Serial.println("Voice command detected: Set green");
+      if (ui_FindAppScreen) {
+        lv_obj_set_style_bg_color(ui_FindAppScreen, lv_color_hex(0x00FF00), LV_PART_MAIN); // Vert
+      }
+      break;
     default: printf("Unknown Event!\r\n"); break;
   }
 }
@@ -90,6 +101,7 @@ void _MIC_Init() {
   i2s.begin(I2S_MODE_STD, 16000, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
 
   ESP_SR.onEvent(Awaken_Event);
+  printf("Micro init awaken event executé\n");
   ESP_SR.begin(i2s, sr_commands, sizeof(sr_commands) / sizeof(sr_cmd_t), SR_CHANNELS_STEREO, SR_MODE_WAKEWORD);
 }
 void MICTask(void *parameter) {

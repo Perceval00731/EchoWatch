@@ -10,13 +10,13 @@
 #include <WiFi.h>             // Wi-Fi
 #include "ui.h"               // UI LVGL
 #include <PubSubClient.h>     // MQTT
-
+#include "SD_Card.h"          // Carte SD
 
 
 // ---- Paramétrage WiFi ----
 
-const char* ssid_local = "Hextaz";
-const char* password_local = "kjax3760";
+const char* ssid_local = "L'espoir fait vivre";
+const char* password_local = "ekip31470";
 
 // ---- Paramétrage MQTT ----
 
@@ -54,8 +54,8 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
     }
     // Conversion et application de la couleur
     uint32_t color = (uint32_t)strtol(colorStr, NULL, 16);
-    if (ui_Panel1) {
-      lv_obj_set_style_bg_color(ui_Panel1, lv_color_hex(color), LV_PART_MAIN);
+    if (ui_FindAppScreen) {
+      lv_obj_set_style_bg_color(ui_FindAppScreen, lv_color_hex(color), LV_PART_MAIN);
     }
   } else {
     for (unsigned int i = 0; i < length; i++) {
@@ -78,6 +78,7 @@ void Init() {
   LCD_Init();
   Lvgl_Init();
   Touch_Init();
+  SD_Init();
   Audio_Init();
   MIC_Init();
   ui_init();

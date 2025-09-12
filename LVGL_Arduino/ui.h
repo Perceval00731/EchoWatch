@@ -26,12 +26,22 @@ extern "C" {
 #include "ui_events.h"
 
 ///////////////////// SCREENS ////////////////////
-#include "ui_Screen1.h"
+#include "ui_HomeScreen.h"
+#include "ui_FindAppScreen.h"
+#include "ui_LightAppScreen.h"
 
 ///////////////////// VARIABLES ////////////////////
 
 // EVENTS
 extern lv_obj_t *ui____initial_actions0;
+
+// IMAGES AND IMAGE SETS
+LV_IMG_DECLARE( ui_img_lightapp_png);   // assets/LightApp.png
+LV_IMG_DECLARE( ui_img_findappicon_png);   // assets/FindAppIcon.png
+LV_IMG_DECLARE( ui_img_1280652718);   // assets/batterie-vide (1).png
+LV_IMG_DECLARE( ui_img_lightoff3_png);   // assets/LightOff3.png
+LV_IMG_DECLARE( ui_img_lighton3_png);   // assets/LightOn3.png
+LV_IMG_DECLARE( ui_img_ellipse_22_png);   // assets/Ellipse 22.png
 
 // UI INIT
 void ui_init(void);

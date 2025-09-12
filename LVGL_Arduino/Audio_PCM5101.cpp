@@ -51,7 +51,7 @@ void Play_Music(const char* directory, const char* fileName) {
   char filePath[maxPathLength];
   if (strcmp(directory, "/") == 0) {                                               
     snprintf(filePath, maxPathLength, "%s%s", directory, fileName);   
-  } else {                                                            
+  } else {                                                
     snprintf(filePath, maxPathLength, "%s/%s", directory, fileName);
   }
   // printf("%s AAAAAAAA.\r\n",filePath);        
@@ -61,9 +61,6 @@ void Play_Music(const char* directory, const char* fileName) {
     printf("Music Read OK\r\n");
   else
     printf("Music Read Failed\r\n");
-  Music_pause();           
-  Music_resume();               
-  Music_pause();     
   vTaskDelay(pdMS_TO_TICKS(100));    
 }
 void Music_pause() {
