@@ -7,6 +7,15 @@
 
 lv_obj_t *ui_HomeScreen = NULL;lv_obj_t *ui_Hour = NULL;lv_obj_t *ui_LightAppButton = NULL;lv_obj_t *ui_FindAppButton = NULL;lv_obj_t *ui_BatteryState = NULL;lv_obj_t *ui_BatteryLabel = NULL;lv_obj_t *ui_EnergyPanel1 = NULL;lv_obj_t *ui_EnergyPanel2 = NULL;lv_obj_t *ui_EnergyPanel3 = NULL;
 // event funtions
+void ui_event_HomeScreen( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_BOTTOM  ) {
+lv_indev_wait_release(lv_indev_get_act());
+      _ui_screen_change( &ui_SoundManagerScreen, LV_SCR_LOAD_ANIM_OVER_BOTTOM, 100, 0, &ui_SoundManagerScreen_screen_init);
+}
+}
+
 void ui_event_LightAppButton( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
@@ -29,14 +38,8 @@ void ui_HomeScreen_screen_init(void)
 {
 ui_HomeScreen = lv_obj_create(NULL);
 lv_obj_clear_flag( ui_HomeScreen, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
-lv_obj_set_style_bg_color(ui_HomeScreen, lv_color_hex(0x13E7D2), LV_PART_MAIN | LV_STATE_DEFAULT );
+lv_obj_set_style_bg_color(ui_HomeScreen, lv_color_hex(0x343431), LV_PART_MAIN | LV_STATE_DEFAULT );
 lv_obj_set_style_bg_opa(ui_HomeScreen, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_bg_grad_color(ui_HomeScreen, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_bg_main_stop(ui_HomeScreen, 0, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_bg_grad_stop(ui_HomeScreen, 200, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_bg_grad_dir(ui_HomeScreen, LV_GRAD_DIR_VER, LV_PART_MAIN| LV_STATE_DEFAULT);
-lv_obj_set_style_bg_img_src( ui_HomeScreen, &ui_img_background_png, LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_bg_img_opa(ui_HomeScreen, 220, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 ui_Hour = lv_label_create(ui_HomeScreen);
 lv_obj_set_width( ui_Hour, LV_SIZE_CONTENT);  /// 1
@@ -118,6 +121,7 @@ lv_obj_set_style_bg_opa(ui_EnergyPanel3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 lv_obj_add_event_cb(ui_LightAppButton, ui_event_LightAppButton, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_FindAppButton, ui_event_FindAppButton, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_HomeScreen, ui_event_HomeScreen, LV_EVENT_ALL, NULL);
 
 }
 

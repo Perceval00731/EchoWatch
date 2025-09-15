@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.adoc": "asciidoc",
+        "*.wsd": "asciidoc",
+        "*.json": "json",
+        "ui.h": "c"
+    }
+}
