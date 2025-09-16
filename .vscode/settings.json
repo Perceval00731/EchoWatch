@@ -3,6 +3,7 @@
         "*.adoc": "asciidoc",
         "*.wsd": "asciidoc",
         "*.json": "json",
-        "ui.h": "c"
+        "ui.h": "c",
+        "string": "cpp"
     }
 }
