@@ -1,8 +1,10 @@
 {
     "files.associations": {
+        "*.embeddedhtml": "html",
         "*.adoc": "asciidoc",
         "*.wsd": "asciidoc",
         "*.json": "json",
-        "ui.h": "c"
+        "ui.h": "c",
+        "ostream": "cpp"
     }
 }
