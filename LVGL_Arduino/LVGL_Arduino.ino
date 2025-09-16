@@ -184,7 +184,7 @@ static int computeBatteryPercent(float volts) {
   const float LOW_MIN = 3.20f;
   const float LOW_MAX = 3.50f; // correspond à 19%
   if (volts <= LOW_MIN) return 0;
-  if (volts >= LOW_MAX) return 19; // garde-fou (devrait être intercepté plus haut)
+  if (volts >= LOW_MAX) return 19; // au cas ou mais normalement géré avant
   float ratio = (volts - LOW_MIN) / (LOW_MAX - LOW_MIN);
   int pct = (int)roundf(ratio * 19.0f);
   if (pct > 19) pct = 19;
