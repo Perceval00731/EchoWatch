@@ -8,18 +8,22 @@
 #include "Audio_PCM5101.h"    // Son
 #include "MIC_MSM.h"          // Micro
 #include <WiFi.h>             // Wi-Fi
+#include "SD_Card.h"          // Carte SD
 #include "ui.h"               // UI LVGL
 #include <PubSubClient.h>     // MQTT
-#include "SD_Card.h"          // Carte SD
 #include "BAT_Driver.h"       // Batterie
 #include "RTC_PCF85063.h"     // RTC
-
+#include "time.h"
 
 // ---- Paramétrage WiFi ----
 
 const char* ssid_local = "iPhone de Melvin";
 const char* password_local = "motdepasse2";
 
+// ---- Paramétrage NTP ----
+const char* ntpServer = "time.windows.com";
+const long gmtOffset_sec = 3600;
+const int daylightOffset_sec = 3600;
 
 // ---- Paramétrage MQTT ----
 
@@ -100,8 +104,22 @@ void mqttMessageColor(uint8_t* payload, unsigned int length) {
   }
 }
 
-
 // ---- Boucle principale ----
+
+// ---- Heure ---- 
+
+void updateTime() {
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    if (ui_Hour) {
+      char hourStr[6];
+      strftime(hourStr, sizeof(hourStr), "%H:%M", &timeinfo);
+      lv_label_set_text(ui_Hour, hourStr);
+    }
+  } else {
+    Serial.println("Erreur NTP");
+  }
+}
 
 
 // ---- Initialisation ----
@@ -112,10 +130,11 @@ void Init() {
   Set_Backlight(50);
   LCD_Init();
   Lvgl_Init();
-  Touch_Init();
   SD_Init();
+  Touch_Init();
   Audio_Init();
   MIC_Init();
+  PCF85063_Init();
   ui_init();
 }
 
@@ -128,6 +147,7 @@ void setup() {
   Init();
   connectToWiFi();
   connectToMQTT();
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.println("Début Musique");
   Serial.println("===== Setup terminé =====");
   Serial.println("Get Battery");
@@ -197,12 +217,8 @@ void updateDisplayInfo() {
   };
 
   // Mise à jour du label de l'heure
-  if (ui_Hour) {
-    char hourStr[6];
-    snprintf(hourStr, sizeof(hourStr), "%02d:%02d", datetime.hour, datetime.minute);
-    lv_label_set_text(ui_Hour, hourStr);
-  }
-
+  updateTime();
+  
   // Mise à jour du label de la batterie (a revoir l'unité ou autre)
   if (ui_BatteryLabel) {
     unsigned long now = millis();
