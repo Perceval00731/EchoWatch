@@ -157,16 +157,81 @@ void setup() {
 // ---- Loop ----
 
 unsigned long lastUpdateTime = 0;
+static unsigned long lastBatteryUpdateTime = 0; // derniere maj de la batterie en ms
+
+// Calcul du pourcentage batterie à partir de la tension
+//    >4.10V = 100%
+//    3.70V - 4.10V -> interpolation 50% à 99%
+//    3.50V - 3.70V -> interpolation 20% à 49%
+//    <3.50V  -> interpolation de 0% à 19% entre 3.20V et 3.50V (en dessous de 3.2 on considère que c'est éteint)
+static int computeBatteryPercent(float volts) {
+  if (volts >= 4.10f) return 100;
+  if (volts >= 3.70f) {
+    // Map 3.70-4.10 -> 50-99
+    float ratio = (volts - 3.70f) / (4.10f - 3.70f);
+    int pct = 50 + (int)roundf(ratio * 49.0f);
+    if (pct > 99) pct = 99;
+    return pct;
+  }
+  if (volts >= 3.50f) {
+    // Map 3.50-3.70 -> 20-49
+    float ratio = (volts - 3.50f) / (3.70f - 3.50f);
+    int pct = 20 + (int)roundf(ratio * 29.0f);
+    if (pct > 49) pct = 49;
+    return pct;
+  }
+  // En dessous de 3.50V : 0-19% entre 3.20V et 3.50V
+  const float LOW_MIN = 3.20f;
+  const float LOW_MAX = 3.50f; // correspond à 19%
+  if (volts <= LOW_MIN) return 0;
+  if (volts >= LOW_MAX) return 19; // garde-fou (devrait être intercepté plus haut)
+  float ratio = (volts - LOW_MIN) / (LOW_MAX - LOW_MIN);
+  int pct = (int)roundf(ratio * 19.0f);
+  if (pct > 19) pct = 19;
+  if (pct < 0) pct = 0;
+  return pct;
+}
 
 // Fonction pour mettre à jour les informations affichées (toutes les secondes pour éviter de surcharger le CPU en recalculant à chaque loop)
 void updateDisplayInfo() {
+  // --- MAJ de l'affichage de la batterie ---
+  auto updateBatteryPanels = [](float volts){
+    // on détermine le niveau selon des seuils de voltage
+    // >4.1V = 100% (3 panneaux)
+    // 3.7 - 4.1V = 50-99% (2 panneaux)
+    // 3.5 - 3.7V = 20-49% (1 panneau)
+    // <3.5V = <20% (0 panneaux allumés)
+    int level = 0;
+    if (volts > 4.1f) level = 3;
+    else if (volts >= 3.7f) level = 2;
+    else if (volts >= 3.5f) level = 1;
+    else level = 0;
+
+    // Opacité: actif = 255 et inactif = 40 (comme ça on le voit quand même un peu)
+    const int OPA_ON = 255;
+    const int OPA_OFF = 40;
+
+    if (ui_EnergyPanel1) lv_obj_set_style_bg_opa(ui_EnergyPanel1, (level >= 1) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
+    if (ui_EnergyPanel2) lv_obj_set_style_bg_opa(ui_EnergyPanel2, (level >= 2) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
+    if (ui_EnergyPanel3) lv_obj_set_style_bg_opa(ui_EnergyPanel3, (level >= 3) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
+  };
+
   // Mise à jour du label de l'heure
   updateTime();
   
   // Mise à jour du label de la batterie (a revoir l'unité ou autre)
   if (ui_BatteryLabel) {
-    float volts = BAT_Get_Volts();
-    lv_label_set_text(ui_BatteryLabel, (String((int)(volts * 20)) + "%").c_str());
+    unsigned long now = millis();
+    // Actualiser la batterie chaque minute ou la première fois
+    if (now - lastBatteryUpdateTime >= 60000UL || lastBatteryUpdateTime == 0) {
+      //float volts = BAT_Get_Volts();
+      float volts = 3.62; //pour tester en attendant d'avoir une batterie
+      int pct = computeBatteryPercent(volts);
+      lv_label_set_text(ui_BatteryLabel, (String(pct) + "%").c_str());
+      updateBatteryPanels(volts);
+      lastBatteryUpdateTime = now;
+    }
+  }
   }
 
   // Mise à jour du durationSlider si la musique est en cours de lecture
