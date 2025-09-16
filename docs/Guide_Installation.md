@@ -41,7 +41,7 @@
    - **LVGL** by kisvegabor version 8.3.10
    - **ESP32-audioI2S-master** by schreibfaul1 version 2.0.0
    - **PubSubClient** by Nick O'Leary version 2.8
-   - Pour cela, copier-coller les bibliothèques fournies dans le dossier `Documents/Arduino/libraries`.
+> ⚠︎ Attention ⚠︎ : Pour cela, copier-coller les bibliothèques fournies depuis le dossier `libraries`vers votre dossier `libraries` __d’Arduino__ (généralement dans `Documents/Arduino/libraries`).
 4. Vérifier les paramètres dans **Tools**.
 ![Capture d'écran des paramètres de l'outil](/ressources/tools.png)
 
