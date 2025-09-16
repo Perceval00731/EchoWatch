@@ -10,7 +10,6 @@
 #include <WiFi.h>             // Wi-Fi
 #include "ui.h"               // UI LVGL
 #include <PubSubClient.h>     // MQTT
-#include "SD_Card.h"          // Carte SD
 #include "BAT_Driver.h"       // Batterie
 
 
@@ -69,7 +68,6 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   }
 }
 
-
 // ---- Boucle principale ----
 
 
@@ -82,7 +80,6 @@ void Init() {
   LCD_Init();
   Lvgl_Init();
   Touch_Init();
-  SD_Init();
   Audio_Init();
   MIC_Init();
   ui_init();
