@@ -21,6 +21,7 @@ extern lv_obj_t *ui_VolumeManagerArc;
 extern lv_obj_t *ui_SoundPlayerSwitch;
 extern lv_obj_t *ui_VolumeLabel;
 extern lv_obj_t *ui_SoundManagerBorder;
+extern lv_obj_t *ui_DurationLabel;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

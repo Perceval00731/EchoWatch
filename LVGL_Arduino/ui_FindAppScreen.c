@@ -4,14 +4,6 @@
 // Project name: SquareLine_Project
 
 #include "ui.h"
-#include <Arduino.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-void playMusic();
-#ifdef __cplusplus
-}
-#endif
 
 lv_obj_t *ui_FindAppScreen = NULL;lv_obj_t *ui_FindAppTitle = NULL;
 // event funtions
@@ -21,12 +13,6 @@ void ui_event_FindAppScreen( lv_event_t * e) {
 if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_TOP  ) {
 lv_indev_wait_release(lv_indev_get_act());
       _ui_screen_change( &ui_HomeScreen, LV_SCR_LOAD_ANIM_OVER_TOP, 200, 0, &ui_HomeScreen_screen_init);
-}
-if ( event_code == LV_EVENT_PRESSED) {
-      uint32_t color = (uint32_t)lv_rand(0, 0xFFFFFF);
-      lv_obj_set_style_bg_color(ui_FindAppScreen, lv_color_hex(color), LV_PART_MAIN);
-      playMusic();
-      printf("Music jouée");
 }
 }
 

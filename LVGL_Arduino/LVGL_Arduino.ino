@@ -194,7 +194,7 @@ extern "C" void playMusic() {
 }
 
 extern "C" void setVolume(int volume) {
-  if (volume < 0) volume = 0;
-  if (volume > 21) volume = 21;
+  if (volume < 0) { volume = 0; }
+  if (volume > 21) { volume = 21; }
   Volume_adjustment(volume);
 }
