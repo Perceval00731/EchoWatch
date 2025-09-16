@@ -15,6 +15,9 @@
 #include "RTC_PCF85063.h"     // RTC
 #include "time.h"
 
+extern "C" void playMusic();
+extern "C" void setVolume(int volume);
+
 // ---- Paramétrage WiFi ----
 
 const char* ssid_local = "iPhone de Melvin";
@@ -37,36 +40,70 @@ bool wifiConnected = false;
 bool mqttConnected = false;
 
 
-// ---- Connection WiFi ----
+// connect wifi/mqtt (non bloquant)
 
-void connectToWiFi() {
+static unsigned long wifiLastAttempt = 0;
+static const unsigned long WIFI_RETRY_INTERVAL = 5000;
+static bool ntpConfigured = false;
+
+static unsigned long mqttLastAttempt = 0;
+static const unsigned long MQTT_RETRY_INTERVAL = 3000;
+
+void startWiFiAttempt() {
   WiFi.mode(WIFI_STA);
-  delay(200);
   WiFi.begin(ssid_local, password_local);
-  unsigned long startAttemptTime = millis();
-  const unsigned long timeout = 10000;
-  if (WiFi.status() == WL_CONNECTED) {
-    wifiConnected = true;
-  } else {
-    wifiConnected = false;
-  }
+  wifiLastAttempt = millis();
+  Serial.println("[WiFi] Tentative de connexion...");
 }
 
-
-// ---- Connection MQTT ----
-
-void connectToMQTT() {
+void attemptMQTTOnce() {
+  if (!wifiConnected) return;
   client.setServer(mqtt_server, 1883);
-  client.setCallback(mqttCallback); // Définir la fonction de rappel (des qu'un message est reçu alors on appelle cette fonction)
-  while (!client.connected()) {
-    // Tentative
-    if (client.connect("EchoWatchClient")) {
-      // Connecté
-      client.subscribe("esp32/color");
-      client.subscribe("esp32/sound");
+  client.setCallback(mqttCallback);
+  if (client.connect("EchoWatchClient")) {
+    Serial.println("[MQTT] Connecté");
+    client.subscribe("esp32/color");
+    client.subscribe("esp32/sound");
+    mqttConnected = true;
+  } else {
+    Serial.print("[MQTT] Échec code=");
+    Serial.println(client.state());
+    mqttConnected = false;
+  }
+  mqttLastAttempt = millis();
+}
+
+void networkLoop() {
+  if (!wifiConnected) {
+    if (WiFi.status() == WL_CONNECTED) {
+      wifiConnected = true;
+      Serial.print("[WiFi] Connecté. IP: ");
+      Serial.println(WiFi.localIP());
     } else {
-      // Échec et nouvelle tentative dans 2 secondes
-      delay(2000);
+      unsigned long now = millis();
+      if (now - wifiLastAttempt >= WIFI_RETRY_INTERVAL) {
+        startWiFiAttempt();
+      }
+    }
+  }
+
+  // config NTP après wifi (une seule fois)
+  if (wifiConnected && !ntpConfigured) {
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    ntpConfigured = true;
+    Serial.println("[NTP] Configuration envoyée");
+  }
+
+  // mqtt
+  if (wifiConnected) {
+    if (!client.connected()) {
+      unsigned long now = millis();
+      if (now - mqttLastAttempt >= MQTT_RETRY_INTERVAL) {
+        attemptMQTTOnce();
+      }
+    } else {
+      mqttConnected = true;
+      client.loop();
     }
   }
 }
@@ -75,10 +112,10 @@ void connectToMQTT() {
 // ---- Callback MQTT ----
 
 void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
-  if (topic == "color") { // Message sur esp32/color
+  if (strcmp(topic, "esp32/color") == 0) { // Message sur esp32/color
     mqttMessageColor(payload, length);
   } 
-  else if (topic == "sound") { // Message sur esp32/sound
+  else if (strcmp(topic, "esp32/sound") == 0) { // Message sur esp32/sound
     playMusic();
   }
 }
@@ -110,14 +147,21 @@ void mqttMessageColor(uint8_t* payload, unsigned int length) {
 
 void updateTime() {
   struct tm timeinfo;
-  if (getLocalTime(&timeinfo)) {
-    if (ui_Hour) {
-      char hourStr[6];
-      strftime(hourStr, sizeof(hourStr), "%H:%M", &timeinfo);
-      lv_label_set_text(ui_Hour, hourStr);
-    }
-  } else {
-    Serial.println("Erreur NTP");
+  bool updated = false;
+  // Essayer une récupération ultra rapide (0 ms) si le NTP a déjà synchronisé
+  if (wifiConnected && ntpConfigured && getLocalTime(&timeinfo, 0)) {
+    updated = true;
+  }
+  // Fallback: utiliser l'heure du RTC (fourni par PCF85063_Loop) via la structure globale 'datetime'
+  if (!updated) {
+    // On suppose que 'datetime' est maintenu à jour ailleurs (PCF85063_Loop)
+    timeinfo.tm_hour = datetime.hour;
+    timeinfo.tm_min  = datetime.minute;
+  }
+  if (ui_Hour) {
+    char hourStr[6];
+    snprintf(hourStr, sizeof(hourStr), "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    lv_label_set_text(ui_Hour, hourStr);
   }
 }
 
@@ -145,9 +189,7 @@ void setup() {
   delay(200);
   Serial.println("===== Démarrage =====");
   Init();
-  connectToWiFi();
-  connectToMQTT();
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  startWiFiAttempt(); // appel non bloquant
   Serial.println("Début Musique");
   Serial.println("===== Setup terminé =====");
   Serial.println("Get Battery");
@@ -232,11 +274,7 @@ void updateDisplayInfo() {
       lastBatteryUpdateTime = now;
     }
   }
-  }
-
   // Mise à jour du durationSlider si la musique est en cours de lecture
-  // NOTE A MOI MEME : FAUT LE DISABLE ET IL NE SEMBLE PAS S'INCREMENTER
-  // AJOUTER UNE MAJ SUR LES LABELS DE TEMPS
   if (ui_DurationSlider && audio.isRunning()) {
     uint32_t musicDuration = audio.getAudioFileDuration();
     uint32_t musicElapsed = audio.getAudioCurrentTime();
@@ -249,7 +287,7 @@ void updateDisplayInfo() {
 
 void loop() {
   Lvgl_Loop();
-  client.loop();
+  networkLoop();
   PCF85063_Loop();
 
   unsigned long currentMillis = millis();
