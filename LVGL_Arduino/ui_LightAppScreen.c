@@ -4,16 +4,37 @@
 // Project name: SquareLine_Project
 
 #include "ui.h"
+// Déclaration de la fonction côté Arduino
+extern void ui_request_lamp_set(int desiredOn);
 
 lv_obj_t *ui_LightAppScreen = NULL;lv_obj_t *ui_LightAppTitle = NULL;lv_obj_t *ui_LightLabel1 = NULL;lv_obj_t *ui_LightSwitch1 = NULL;lv_obj_t *ui_LightCircleBorder = NULL;
 // event funtions
 void ui_event_LightAppScreen( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
-if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_TOP  ) {
-lv_indev_wait_release(lv_indev_get_act());
-      _ui_screen_change( &ui_HomeScreen, LV_SCR_LOAD_ANIM_OVER_TOP, 200, 0, &ui_HomeScreen_screen_init);
+    if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_TOP  ) {
+        lv_indev_wait_release(lv_indev_get_act());
+        _ui_screen_change( &ui_HomeScreen, LV_SCR_LOAD_ANIM_OVER_TOP, 200, 0, &ui_HomeScreen_screen_init);
+    }
 }
+
+static void ui_event_LightSwitch1(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_PRESSED) {
+        // Empêcher le toggle visuel immédiat: on déclenche la demande et on gèle le switch
+        bool desiredOn = !lv_obj_has_state(ui_LightSwitch1, LV_STATE_CHECKED);
+        ui_request_lamp_set(desiredOn ? 1 : 0);
+        // garder l'état actuel (confirmé) et désactiver jusqu'à ACK
+        if (lv_obj_has_state(ui_LightSwitch1, LV_STATE_CHECKED))
+            lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+        else
+            lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+        lv_obj_add_state(ui_LightSwitch1, LV_STATE_DISABLED);
+    } else if (code == LV_EVENT_VALUE_CHANGED) {
+        // Annuler le toggle visuel automatique et rester sur l'état confirmé jusqu'à l'ACK
+        extern void ui_revert_lamp_visual_to_ack(void);
+        ui_revert_lamp_visual_to_ack();
+    }
 }
 
 // build funtions
@@ -67,6 +88,8 @@ lv_obj_set_style_bg_img_src( ui_LightSwitch1, &ui_img_lightoff3_png, LV_PART_KNO
 lv_obj_set_style_bg_color(ui_LightSwitch1, lv_color_hex(0x999999), LV_PART_KNOB | LV_STATE_CHECKED );
 lv_obj_set_style_bg_opa(ui_LightSwitch1, 255, LV_PART_KNOB| LV_STATE_CHECKED);
 lv_obj_set_style_bg_img_src( ui_LightSwitch1, &ui_img_lighton3_png, LV_PART_KNOB | LV_STATE_CHECKED );
+
+lv_obj_add_event_cb(ui_LightSwitch1, ui_event_LightSwitch1, LV_EVENT_ALL, NULL);
 
 ui_LightCircleBorder = lv_img_create(ui_LightAppScreen);
 lv_img_set_src(ui_LightCircleBorder, &ui_img_ellipse_22_png);

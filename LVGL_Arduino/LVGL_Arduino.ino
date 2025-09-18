@@ -14,14 +14,17 @@
 #include "BAT_Driver.h"       // Batterie
 #include "RTC_PCF85063.h"     // RTC
 #include "time.h"
+#include <ctype.h>
 
 extern "C" void playMusic();
 extern "C" void setVolume(int volume);
+extern "C" void ui_request_lamp_set(int desiredOn);
+extern "C" void ui_revert_lamp_visual_to_ack(void);
 
 // ---- Paramétrage WiFi ----
 
-const char* ssid_local = "iPhone de Melvin";
-const char* password_local = "motdepasse2";
+const char* ssid_local = "L'espoir fait vivre";
+const char* password_local = "ekip31470";
 
 // ---- Paramétrage NTP ----
 const char* ntpServer = "time.windows.com";
@@ -49,8 +52,16 @@ static bool ntpConfigured = false;
 static unsigned long mqttLastAttempt = 0;
 static const unsigned long MQTT_RETRY_INTERVAL = 3000;
 
+// etat de la lampe (avec ACK)
+static bool lampStateAck = false;           // dernier état confirmé
+static bool lampPending = false;            // en attente d'ACK
+static int  lampDesired = 0;                // état demandé (0/1)
+static unsigned long lampPendingSince = 0;  // ms
+static const unsigned long LAMP_ACK_TIMEOUT = 5000; // ms
+
 void startWiFiAttempt() {
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
   WiFi.begin(ssid_local, password_local);
   wifiLastAttempt = millis();
   Serial.println("[WiFi] Tentative de connexion...");
@@ -64,6 +75,7 @@ void attemptMQTTOnce() {
     Serial.println("[MQTT] Connecté");
     client.subscribe("esp32/color");
     client.subscribe("esp32/sound");
+    client.subscribe("esp32/lampe/ack");
     mqttConnected = true;
   } else {
     Serial.print("[MQTT] Échec code=");
@@ -74,16 +86,31 @@ void attemptMQTTOnce() {
 }
 
 void networkLoop() {
+  bool curWifi = (WiFi.status() == WL_CONNECTED);
+  // Transition WiFi
+  if (curWifi && !wifiConnected) {
+    wifiConnected = true;
+    Serial.print("[WiFi] Connecté. IP: ");
+    Serial.println(WiFi.localIP());
+  } else if (!curWifi && wifiConnected) {
+    // perte WiFi
+    wifiConnected = false;
+    mqttConnected = false;
+    // liberer l'UI au cas où on attendait un ACK
+    lampPending = false;
+    if (ui_LightSwitch1) {
+      // revenir à l'état confirmé et réactiver
+      if (lampStateAck) lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+      else              lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+      lv_obj_clear_state(ui_LightSwitch1, LV_STATE_DISABLED);
+    }
+  }
+
+  // Si pas de co wifi on tente de se reco
   if (!wifiConnected) {
-    if (WiFi.status() == WL_CONNECTED) {
-      wifiConnected = true;
-      Serial.print("[WiFi] Connecté. IP: ");
-      Serial.println(WiFi.localIP());
-    } else {
-      unsigned long now = millis();
-      if (now - wifiLastAttempt >= WIFI_RETRY_INTERVAL) {
-        startWiFiAttempt();
-      }
+    unsigned long now = millis();
+    if (now - wifiLastAttempt >= WIFI_RETRY_INTERVAL) {
+      startWiFiAttempt();
     }
   }
 
@@ -94,9 +121,19 @@ void networkLoop() {
     Serial.println("[NTP] Configuration envoyée");
   }
 
-  // mqtt
+  // MQTT gestion
+  bool curMqtt = client.connected();
   if (wifiConnected) {
-    if (!client.connected()) {
+    if (!curMqtt) {
+      if (mqttConnected) {
+        mqttConnected = false;
+        lampPending = false;
+        if (ui_LightSwitch1) {
+          if (lampStateAck) lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+          else              lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+          lv_obj_clear_state(ui_LightSwitch1, LV_STATE_DISABLED);
+        }
+      }
       unsigned long now = millis();
       if (now - mqttLastAttempt >= MQTT_RETRY_INTERVAL) {
         attemptMQTTOnce();
@@ -117,6 +154,24 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   } 
   else if (strcmp(topic, "esp32/sound") == 0) { // Message sur esp32/sound
     playMusic();
+  }
+  else if (strcmp(topic, "esp32/lampe/ack") == 0) { // confirmation lampe
+    // extraire payload en chaîne
+    char buf[16];
+    unsigned int n = (length < sizeof(buf)-1) ? length : sizeof(buf)-1;
+    memcpy(buf, payload, n);
+    buf[n] = '\0';
+    // normaliser
+    for (char* p = buf; *p; ++p) *p = toupper((unsigned char)*p);
+    bool on = (strcmp(buf, "ON") == 0 || strcmp(buf, "1") == 0 || strcmp(buf, "TRUE") == 0);
+    lampStateAck = on;
+    lampPending = false;
+    // appliquer dans l'UI et réactiver le switch
+    if (ui_LightSwitch1) {
+      if (on) lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+      else    lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+      lv_obj_clear_state(ui_LightSwitch1, LV_STATE_DISABLED);
+    }
   }
 }
 
@@ -274,6 +329,16 @@ void updateDisplayInfo() {
       lastBatteryUpdateTime = now;
     }
   }
+  // gestion timeout d'ACK lampe
+  if (lampPending && (millis() - lampPendingSince > LAMP_ACK_TIMEOUT)) {
+    lampPending = false;
+    // reactiver le switch et remettre l'état confirmé
+    if (ui_LightSwitch1) {
+      if (lampStateAck) lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+      else              lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+      lv_obj_clear_state(ui_LightSwitch1, LV_STATE_DISABLED);
+    }
+  }
   // Mise à jour du durationSlider si la musique est en cours de lecture
   if (ui_DurationSlider && audio.isRunning()) {
     uint32_t musicDuration = audio.getAudioFileDuration();
@@ -316,4 +381,43 @@ extern "C" void setVolume(int volume) {
   if (volume < 0) { volume = 0; }
   if (volume > 21) { volume = 21; }
   Volume_adjustment(volume);
+}
+
+// Appelé par l'UI quand l'utilisateur change le switch
+extern "C" void ui_request_lamp_set(int desiredOn) {
+  // si pas connecté MQTT on ignore et on retourne à l'état connu
+  if (!mqttConnected || !client.connected()) {
+    if (ui_LightSwitch1) {
+      if (lampStateAck) lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+      else              lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+    }
+    return;
+  }
+  lampDesired = desiredOn ? 1 : 0;
+  lampPending = true;
+  lampPendingSince = millis();
+  // gel du switch jusqu'à ACK et afficher l'état courant (non changé)
+  if (ui_LightSwitch1) {
+    if (lampStateAck) lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+    else              lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+    lv_obj_add_state(ui_LightSwitch1, LV_STATE_DISABLED);
+  }
+  // publish la commande
+  const char* payload = lampDesired ? "ON" : "OFF";
+  bool ok = client.publish("esp32/lampe", payload);
+  if (!ok) {
+    // echec publish: lever l'attente et réactiver
+    lampPending = false;
+    if (ui_LightSwitch1) {
+      lv_obj_clear_state(ui_LightSwitch1, LV_STATE_DISABLED);
+    }
+  }
+}
+
+// revenir visuellement à l'état confirmé de la lampe (utilisé pour annuler un toggle auto)
+extern "C" void ui_revert_lamp_visual_to_ack(void) {
+  if (ui_LightSwitch1) {
+    if (lampStateAck) lv_obj_add_state(ui_LightSwitch1, LV_STATE_CHECKED);
+    else              lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
+  }
 }
