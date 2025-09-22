@@ -13,6 +13,7 @@
 #include <PubSubClient.h>     // MQTT
 #include "BAT_Driver.h"       // Batterie
 #include "RTC_PCF85063.h"     // RTC
+#include "Gyro_QMI8658.h"     // Gyroscope
 #include "time.h"
 
 extern "C" void playMusic();
@@ -116,7 +117,15 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
     mqttMessageColor(payload, length);
   } 
   else if (strcmp(topic, "esp32/sound") == 0) { // Message sur esp32/sound
+    printf("Message reçu sur esp32/sound, jouer/pause musique\n");
     playMusic();
+  }
+  else if (strcmp(topic, "esp32/speaker") == 0) { // Message sur esp32/speaker
+    // Lis la payload avec un TTS
+  }
+  else {
+    Serial.print("Message reçu sur topic inconnu: ");
+    Serial.println(topic);
   }
 }
 
@@ -169,17 +178,18 @@ void updateTime() {
 // ---- Initialisation ----
 
 void Init() {
-  I2C_Init();
-  Backlight_Init();
-  Set_Backlight(50);
-  LCD_Init();
-  Lvgl_Init();
-  SD_Init();
-  Touch_Init();
-  Audio_Init();
-  MIC_Init();
-  PCF85063_Init();
-  ui_init();
+  I2C_Init();         // Initialisation I2C
+  Backlight_Init();   // Initialisation du rétroéclairage
+  Set_Backlight(50);  // Initialisation de la luminosité
+  LCD_Init();         // Initialisation de l'écran
+  Lvgl_Init();        // Initialisation de LVGL
+  SD_Init();          // Initialisation de la carte SD
+  Touch_Init();       // Initialisation du tactile
+  Audio_Init();       // Initialisation du son
+  MIC_Init();         // Initialisation du microphone
+  PCF85063_Init();    // Initialisation de l'horloge temps réel
+  QMI8658_Init();     // Initialisation du gyroscope
+  ui_init();          // Initialisation de l'interface utilisateur
 }
 
 // ---- Setup ----
@@ -190,10 +200,6 @@ void setup() {
   Serial.println("===== Démarrage =====");
   Init();
   startWiFiAttempt(); // appel non bloquant
-  Serial.println("Début Musique");
-  Serial.println("===== Setup terminé =====");
-  Serial.println("Get Battery");
-  Serial.println(BAT_Get_Volts());
 }
 
 // ---- Loop ----
@@ -257,9 +263,6 @@ void updateDisplayInfo() {
     if (ui_EnergyPanel2) lv_obj_set_style_bg_opa(ui_EnergyPanel2, (level >= 2) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
     if (ui_EnergyPanel3) lv_obj_set_style_bg_opa(ui_EnergyPanel3, (level >= 3) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
   };
-
-  // Mise à jour du label de l'heure
-  updateTime();
   
   // Mise à jour du label de la batterie (a revoir l'unité ou autre)
   if (ui_BatteryLabel) {
@@ -274,26 +277,26 @@ void updateDisplayInfo() {
       lastBatteryUpdateTime = now;
     }
   }
-  // Mise à jour du durationSlider si la musique est en cours de lecture
-  if (ui_DurationSlider && audio.isRunning()) {
-    uint32_t musicDuration = audio.getAudioFileDuration();
-    uint32_t musicElapsed = audio.getAudioCurrentTime();
-    if (musicDuration > 0) {
-      int sliderValue = (musicElapsed * 100) / musicDuration;
-      lv_slider_set_value(ui_DurationSlider, sliderValue, LV_ANIM_OFF);
-    }
-  }
+
+  // Mise à jour du label de l'heure
+  updateTime();
+
+  // Mise à jour des infos sonores
+  updateSoundDisplayInfo();
 }
 
 void loop() {
   Lvgl_Loop();
   networkLoop();
-  PCF85063_Loop();
 
   unsigned long currentMillis = millis();
   if (currentMillis - lastUpdateTime >= 1000) {
     lastUpdateTime = currentMillis;
+
+    // Action à faire toutes les secondes
+    PCF85063_Loop();
     updateDisplayInfo();
+    sendGyroDataMQTT();
   }
 
   vTaskDelay(pdMS_TO_TICKS(5));
@@ -308,7 +311,7 @@ extern "C" void playMusic() {
   } else {
     printf("Lecture du son.\n");
     Volume_adjustment(21);
-    Play_Music("/", "berceuse-jules.mp3");
+    Play_Music("/", "ptitsondetest.mp3");
   }
 }
 
@@ -316,4 +319,56 @@ extern "C" void setVolume(int volume) {
   if (volume < 0) { volume = 0; }
   if (volume > 21) { volume = 21; }
   Volume_adjustment(volume);
+}
+
+void updateSoundDisplayInfo() {
+  // Mise à jour du durationSlider et durationLabel (mm:ss / mm:ss) si la musique est en cours de lecture
+  if (ui_DurationSlider && ui_DurationLabel && audio.isRunning()) {
+      uint32_t musicDuration = audio.getAudioFileDuration();   // durée totale en secondes
+      uint32_t musicElapsed = audio.getAudioCurrentTime();     // temps écoulé en secondes
+
+      if (musicDuration > 0) {
+          // Met à jour le slider
+          int sliderValue = (musicElapsed * 100) / musicDuration;
+          lv_slider_set_value(ui_DurationSlider, sliderValue, LV_ANIM_OFF);
+
+          // Convertir les secondes en mm:ss
+          char buf[16];
+          int elapsedMin = musicElapsed / 60;
+          int elapsedSec = musicElapsed % 60;
+          int durationMin = musicDuration / 60;
+          int durationSec = musicDuration % 60;
+
+          snprintf(buf, sizeof(buf), "%02d:%02d / %02d:%02d", 
+                  elapsedMin, elapsedSec, durationMin, durationSec);
+          lv_label_set_text(ui_DurationLabel, buf);
+      }
+  }
+  else if (ui_DurationLabel) {
+      // Si la musique n'est pas en cours, on affiche juste 00:00 / 00:00
+      lv_label_set_text(ui_DurationLabel, "00:00 / 00:00");
+      if (ui_DurationSlider) {
+          lv_slider_set_value(ui_DurationSlider, 0, LV_ANIM_OFF);
+      }
+  }
+}
+
+void sendGyroDataMQTT() {
+  if (!mqttConnected) return;
+
+  getAccelerometer();
+  getGyroscope();
+
+  // Préparer le message JSON
+  char msg[128];
+  snprintf(msg, sizeof(msg), "{\"accel\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f},\"gyro\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f}}",
+           Accel.x, Accel.y, Accel.z,
+           Gyro.x, Gyro.y, Gyro.z);
+
+  // Publier le message
+  if (client.publish("esp32/gyro", msg)) {
+    Serial.println("[MQTT] Données gyroscopiques publiées");
+  } else {
+    Serial.println("[MQTT] Échec de la publication des données gyroscopiques");
+  }
 }

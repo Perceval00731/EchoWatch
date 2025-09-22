@@ -35,6 +35,14 @@ void ui_event_VolumeManagerArc( lv_event_t * e) {
     }
 }
 
+void ui_event_SoundPlayerSwitch( lv_event_t * e) {
+    lv_event_code_t event_code = lv_event_get_code(e);
+
+    if ( event_code == LV_EVENT_VALUE_CHANGED) {
+        playMusic();
+    }
+}
+
 // build funtions
 
 void ui_SoundManagerScreen_screen_init(void)
@@ -111,6 +119,7 @@ lv_obj_set_style_text_opa(ui_DurationLabel, 255, LV_PART_MAIN| LV_STATE_DEFAULT)
 lv_obj_set_style_text_font(ui_DurationLabel, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 lv_obj_add_event_cb(ui_VolumeManagerArc, ui_event_VolumeManagerArc, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_SoundPlayerSwitch, ui_event_SoundPlayerSwitch, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_SoundManagerScreen, ui_event_SoundManagerScreen, LV_EVENT_ALL, NULL);
 
 }
