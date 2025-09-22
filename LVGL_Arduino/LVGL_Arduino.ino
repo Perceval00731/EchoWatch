@@ -8,21 +8,26 @@
 #include "Audio_PCM5101.h"    // Son
 #include "MIC_MSM.h"          // Micro
 #include <WiFi.h>             // Wi-Fi
+#include "SD_Card.h"          // Carte SD
 #include "ui.h"               // UI LVGL
 #include <PubSubClient.h>     // MQTT
-#include "SD_Card.h"          // Carte SD
 #include "BAT_Driver.h"       // Batterie
 #include "RTC_PCF85063.h"     // RTC
 #include "Gyro_QMI8658.h"     // Gyroscope
-
 #include "time.h"
 
+extern "C" void playMusic();
+extern "C" void setVolume(int volume);
 
 // ---- Paramétrage WiFi ----
 
 const char* ssid_local = "iPhone de Melvin";
 const char* password_local = "motdepasse2";
 
+// ---- Paramétrage NTP ----
+const char* ntpServer = "time.windows.com";
+const long gmtOffset_sec = 3600;
+const int daylightOffset_sec = 3600;
 
 // ---- Paramétrage MQTT ----
 
@@ -36,36 +41,70 @@ bool wifiConnected = false;
 bool mqttConnected = false;
 
 
-// ---- Connection WiFi ----
+// connect wifi/mqtt (non bloquant)
 
-void connectToWiFi() {
+static unsigned long wifiLastAttempt = 0;
+static const unsigned long WIFI_RETRY_INTERVAL = 5000;
+static bool ntpConfigured = false;
+
+static unsigned long mqttLastAttempt = 0;
+static const unsigned long MQTT_RETRY_INTERVAL = 3000;
+
+void startWiFiAttempt() {
   WiFi.mode(WIFI_STA);
-  delay(200);
   WiFi.begin(ssid_local, password_local);
-  unsigned long startAttemptTime = millis();
-  const unsigned long timeout = 10000;
-  if (WiFi.status() == WL_CONNECTED) {
-    wifiConnected = true;
-  } else {
-    wifiConnected = false;
-  }
+  wifiLastAttempt = millis();
+  Serial.println("[WiFi] Tentative de connexion...");
 }
 
-
-// ---- Connection MQTT ----
-
-void connectToMQTT() {
+void attemptMQTTOnce() {
+  if (!wifiConnected) return;
   client.setServer(mqtt_server, 1883);
-  client.setCallback(mqttCallback); // Définir la fonction de rappel (des qu'un message est reçu alors on appelle cette fonction)
-  while (!client.connected()) {
-    // Tentative
-    if (client.connect("EchoWatchClient")) {
-      // Connecté
-      client.subscribe("esp32/color");
-      client.subscribe("esp32/sound");
+  client.setCallback(mqttCallback);
+  if (client.connect("EchoWatchClient")) {
+    Serial.println("[MQTT] Connecté");
+    client.subscribe("esp32/color");
+    client.subscribe("esp32/sound");
+    mqttConnected = true;
+  } else {
+    Serial.print("[MQTT] Échec code=");
+    Serial.println(client.state());
+    mqttConnected = false;
+  }
+  mqttLastAttempt = millis();
+}
+
+void networkLoop() {
+  if (!wifiConnected) {
+    if (WiFi.status() == WL_CONNECTED) {
+      wifiConnected = true;
+      Serial.print("[WiFi] Connecté. IP: ");
+      Serial.println(WiFi.localIP());
     } else {
-      // Échec et nouvelle tentative dans 2 secondes
-      delay(2000);
+      unsigned long now = millis();
+      if (now - wifiLastAttempt >= WIFI_RETRY_INTERVAL) {
+        startWiFiAttempt();
+      }
+    }
+  }
+
+  // config NTP après wifi (une seule fois)
+  if (wifiConnected && !ntpConfigured) {
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    ntpConfigured = true;
+    Serial.println("[NTP] Configuration envoyée");
+  }
+
+  // mqtt
+  if (wifiConnected) {
+    if (!client.connected()) {
+      unsigned long now = millis();
+      if (now - mqttLastAttempt >= MQTT_RETRY_INTERVAL) {
+        attemptMQTTOnce();
+      }
+    } else {
+      mqttConnected = true;
+      client.loop();
     }
   }
 }
@@ -74,7 +113,7 @@ void connectToMQTT() {
 // ---- Callback MQTT ----
 
 void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
-  if (topic == "color") { // Message sur esp32/color
+  if (strcmp(topic, "esp32/color") == 0) { // Message sur esp32/color
     mqttMessageColor(payload, length);
   } 
   else if (strcmp(topic, "esp32/sound") == 0) { // Message sur esp32/sound
@@ -110,7 +149,6 @@ void mqttMessageColor(uint8_t* payload, unsigned int length) {
     Serial.println("Payload couleur invalide"); // Erreur de format dans le message MQTT
   }
 }
-
 
 // ---- Boucle principale ----
 
@@ -167,6 +205,40 @@ void setup() {
 // ---- Loop ----
 
 unsigned long lastUpdateTime = 0;
+static unsigned long lastBatteryUpdateTime = 0; // derniere maj de la batterie en ms
+
+// Calcul du pourcentage batterie à partir de la tension
+//    >4.10V = 100%
+//    3.70V - 4.10V -> interpolation 50% à 99%
+//    3.50V - 3.70V -> interpolation 20% à 49%
+//    <3.50V  -> interpolation de 0% à 19% entre 3.20V et 3.50V (en dessous de 3.2 on considère que c'est éteint)
+static int computeBatteryPercent(float volts) {
+  if (volts >= 4.10f) return 100;
+  if (volts >= 3.70f) {
+    // Map 3.70-4.10 -> 50-99
+    float ratio = (volts - 3.70f) / (4.10f - 3.70f);
+    int pct = 50 + (int)roundf(ratio * 49.0f);
+    if (pct > 99) pct = 99;
+    return pct;
+  }
+  if (volts >= 3.50f) {
+    // Map 3.50-3.70 -> 20-49
+    float ratio = (volts - 3.50f) / (3.70f - 3.50f);
+    int pct = 20 + (int)roundf(ratio * 29.0f);
+    if (pct > 49) pct = 49;
+    return pct;
+  }
+  // En dessous de 3.50V : 0-19% entre 3.20V et 3.50V
+  const float LOW_MIN = 3.20f;
+  const float LOW_MAX = 3.50f; // correspond à 19%
+  if (volts <= LOW_MIN) return 0;
+  if (volts >= LOW_MAX) return 19; // au cas ou mais normalement géré avant
+  float ratio = (volts - LOW_MIN) / (LOW_MAX - LOW_MIN);
+  int pct = (int)roundf(ratio * 19.0f);
+  if (pct > 19) pct = 19;
+  if (pct < 0) pct = 0;
+  return pct;
+}
 
 // Fonction pour mettre à jour les informations affichées (toutes les secondes pour éviter de surcharger le CPU en recalculant à chaque loop)
 void updateDisplayInfo() {
