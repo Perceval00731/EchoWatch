@@ -13,6 +13,9 @@
 #include "SD_Card.h"          // Carte SD
 #include "BAT_Driver.h"       // Batterie
 #include "RTC_PCF85063.h"     // RTC
+#include "Gyro_QMI8658.h"     // Gyroscope
+
+#include "time.h"
 
 
 // ---- Paramétrage WiFi ----
@@ -74,8 +77,16 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   if (topic == "color") { // Message sur esp32/color
     mqttMessageColor(payload, length);
   } 
-  else if (topic == "sound") { // Message sur esp32/sound
+  else if (strcmp(topic, "esp32/sound") == 0) { // Message sur esp32/sound
+    printf("Message reçu sur esp32/sound, jouer/pause musique\n");
     playMusic();
+  }
+  else if (strcmp(topic, "esp32/speaker") == 0) { // Message sur esp32/speaker
+    // Lis la payload avec un TTS
+  }
+  else {
+    Serial.print("Message reçu sur topic inconnu: ");
+    Serial.println(topic);
   }
 }
 
@@ -103,20 +114,44 @@ void mqttMessageColor(uint8_t* payload, unsigned int length) {
 
 // ---- Boucle principale ----
 
+// ---- Heure ---- 
+
+void updateTime() {
+  struct tm timeinfo;
+  bool updated = false;
+  // Essayer une récupération ultra rapide (0 ms) si le NTP a déjà synchronisé
+  if (wifiConnected && ntpConfigured && getLocalTime(&timeinfo, 0)) {
+    updated = true;
+  }
+  // Fallback: utiliser l'heure du RTC (fourni par PCF85063_Loop) via la structure globale 'datetime'
+  if (!updated) {
+    // On suppose que 'datetime' est maintenu à jour ailleurs (PCF85063_Loop)
+    timeinfo.tm_hour = datetime.hour;
+    timeinfo.tm_min  = datetime.minute;
+  }
+  if (ui_Hour) {
+    char hourStr[6];
+    snprintf(hourStr, sizeof(hourStr), "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+    lv_label_set_text(ui_Hour, hourStr);
+  }
+}
+
 
 // ---- Initialisation ----
 
 void Init() {
-  I2C_Init();
-  Backlight_Init();
-  Set_Backlight(50);
-  LCD_Init();
-  Lvgl_Init();
-  Touch_Init();
-  SD_Init();
-  Audio_Init();
-  MIC_Init();
-  ui_init();
+  I2C_Init();         // Initialisation I2C
+  Backlight_Init();   // Initialisation du rétroéclairage
+  Set_Backlight(50);  // Initialisation de la luminosité
+  LCD_Init();         // Initialisation de l'écran
+  Lvgl_Init();        // Initialisation de LVGL
+  SD_Init();          // Initialisation de la carte SD
+  Touch_Init();       // Initialisation du tactile
+  Audio_Init();       // Initialisation du son
+  MIC_Init();         // Initialisation du microphone
+  PCF85063_Init();    // Initialisation de l'horloge temps réel
+  QMI8658_Init();     // Initialisation du gyroscope
+  ui_init();          // Initialisation de l'interface utilisateur
 }
 
 // ---- Setup ----
@@ -126,12 +161,7 @@ void setup() {
   delay(200);
   Serial.println("===== Démarrage =====");
   Init();
-  connectToWiFi();
-  connectToMQTT();
-  Serial.println("Début Musique");
-  Serial.println("===== Setup terminé =====");
-  Serial.println("Get Battery");
-  Serial.println(BAT_Get_Volts());
+  startWiFiAttempt(); // appel non bloquant
 }
 
 // ---- Loop ----
@@ -140,41 +170,61 @@ unsigned long lastUpdateTime = 0;
 
 // Fonction pour mettre à jour les informations affichées (toutes les secondes pour éviter de surcharger le CPU en recalculant à chaque loop)
 void updateDisplayInfo() {
-  // Mise à jour du label de l'heure
-  if (ui_Hour) {
-    char hourStr[6];
-    snprintf(hourStr, sizeof(hourStr), "%02d:%02d", datetime.hour, datetime.minute);
-    lv_label_set_text(ui_Hour, hourStr);
-  }
+  // --- MAJ de l'affichage de la batterie ---
+  auto updateBatteryPanels = [](float volts){
+    // on détermine le niveau selon des seuils de voltage
+    // >4.1V = 100% (3 panneaux)
+    // 3.7 - 4.1V = 50-99% (2 panneaux)
+    // 3.5 - 3.7V = 20-49% (1 panneau)
+    // <3.5V = <20% (0 panneaux allumés)
+    int level = 0;
+    if (volts > 4.1f) level = 3;
+    else if (volts >= 3.7f) level = 2;
+    else if (volts >= 3.5f) level = 1;
+    else level = 0;
 
+    // Opacité: actif = 255 et inactif = 40 (comme ça on le voit quand même un peu)
+    const int OPA_ON = 255;
+    const int OPA_OFF = 40;
+
+    if (ui_EnergyPanel1) lv_obj_set_style_bg_opa(ui_EnergyPanel1, (level >= 1) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
+    if (ui_EnergyPanel2) lv_obj_set_style_bg_opa(ui_EnergyPanel2, (level >= 2) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
+    if (ui_EnergyPanel3) lv_obj_set_style_bg_opa(ui_EnergyPanel3, (level >= 3) ? OPA_ON : OPA_OFF, LV_PART_MAIN | LV_STATE_DEFAULT);
+  };
+  
   // Mise à jour du label de la batterie (a revoir l'unité ou autre)
   if (ui_BatteryLabel) {
-    float volts = BAT_Get_Volts();
-    lv_label_set_text(ui_BatteryLabel, (String((int)(volts * 20)) + "%").c_str());
-  }
-
-  // Mise à jour du durationSlider si la musique est en cours de lecture
-  // NOTE A MOI MEME : FAUT LE DISABLE ET IL NE SEMBLE PAS S'INCREMENTER
-  // AJOUTER UNE MAJ SUR LES LABELS DE TEMPS
-  if (ui_DurationSlider && audio.isRunning()) {
-    uint32_t musicDuration = audio.getAudioFileDuration();
-    uint32_t musicElapsed = audio.getAudioCurrentTime();
-    if (musicDuration > 0) {
-      int sliderValue = (musicElapsed * 100) / musicDuration;
-      lv_slider_set_value(ui_DurationSlider, sliderValue, LV_ANIM_OFF);
+    unsigned long now = millis();
+    // Actualiser la batterie chaque minute ou la première fois
+    if (now - lastBatteryUpdateTime >= 60000UL || lastBatteryUpdateTime == 0) {
+      //float volts = BAT_Get_Volts();
+      float volts = 3.62; //pour tester en attendant d'avoir une batterie
+      int pct = computeBatteryPercent(volts);
+      lv_label_set_text(ui_BatteryLabel, (String(pct) + "%").c_str());
+      updateBatteryPanels(volts);
+      lastBatteryUpdateTime = now;
     }
   }
+
+  // Mise à jour du label de l'heure
+  updateTime();
+
+  // Mise à jour des infos sonores
+  updateSoundDisplayInfo();
 }
 
 void loop() {
   Lvgl_Loop();
-  client.loop();
-  PCF85063_Loop();
+  networkLoop();
 
   unsigned long currentMillis = millis();
   if (currentMillis - lastUpdateTime >= 1000) {
     lastUpdateTime = currentMillis;
+
+    // Action à faire toutes les secondes
+    PCF85063_Loop();
     updateDisplayInfo();
+    sendGyroDataMQTT();
   }
 
   vTaskDelay(pdMS_TO_TICKS(5));
@@ -189,7 +239,7 @@ extern "C" void playMusic() {
   } else {
     printf("Lecture du son.\n");
     Volume_adjustment(21);
-    Play_Music("/", "berceuse-jules.mp3");
+    Play_Music("/", "ptitsondetest.mp3");
   }
 }
 
@@ -197,4 +247,56 @@ extern "C" void setVolume(int volume) {
   if (volume < 0) { volume = 0; }
   if (volume > 21) { volume = 21; }
   Volume_adjustment(volume);
+}
+
+void updateSoundDisplayInfo() {
+  // Mise à jour du durationSlider et durationLabel (mm:ss / mm:ss) si la musique est en cours de lecture
+  if (ui_DurationSlider && ui_DurationLabel && audio.isRunning()) {
+      uint32_t musicDuration = audio.getAudioFileDuration();   // durée totale en secondes
+      uint32_t musicElapsed = audio.getAudioCurrentTime();     // temps écoulé en secondes
+
+      if (musicDuration > 0) {
+          // Met à jour le slider
+          int sliderValue = (musicElapsed * 100) / musicDuration;
+          lv_slider_set_value(ui_DurationSlider, sliderValue, LV_ANIM_OFF);
+
+          // Convertir les secondes en mm:ss
+          char buf[16];
+          int elapsedMin = musicElapsed / 60;
+          int elapsedSec = musicElapsed % 60;
+          int durationMin = musicDuration / 60;
+          int durationSec = musicDuration % 60;
+
+          snprintf(buf, sizeof(buf), "%02d:%02d / %02d:%02d", 
+                  elapsedMin, elapsedSec, durationMin, durationSec);
+          lv_label_set_text(ui_DurationLabel, buf);
+      }
+  }
+  else if (ui_DurationLabel) {
+      // Si la musique n'est pas en cours, on affiche juste 00:00 / 00:00
+      lv_label_set_text(ui_DurationLabel, "00:00 / 00:00");
+      if (ui_DurationSlider) {
+          lv_slider_set_value(ui_DurationSlider, 0, LV_ANIM_OFF);
+      }
+  }
+}
+
+void sendGyroDataMQTT() {
+  if (!mqttConnected) return;
+
+  getAccelerometer();
+  getGyroscope();
+
+  // Préparer le message JSON
+  char msg[128];
+  snprintf(msg, sizeof(msg), "{\"accel\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f},\"gyro\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f}}",
+           Accel.x, Accel.y, Accel.z,
+           Gyro.x, Gyro.y, Gyro.z);
+
+  // Publier le message
+  if (client.publish("esp32/gyro", msg)) {
+    Serial.println("[MQTT] Données gyroscopiques publiées");
+  } else {
+    Serial.println("[MQTT] Échec de la publication des données gyroscopiques");
+  }
 }
