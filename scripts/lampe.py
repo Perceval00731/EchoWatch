@@ -31,6 +31,7 @@ def on_connect(client, userdata, flags, rc):
     print(f"[MQTT] connect rc={rc}")
     if rc == 0:
         client.subscribe(TOPIC_CMD)
+        publish_ack(client)
     else:
         print("Connexion broker échouée")
 
@@ -43,8 +44,9 @@ def norm(payload: bytes) -> str:
 def publish_ack(client):
     with state_lock:
         payload = "ON" if state_on else "OFF"
-    client.publish(TOPIC_ACK, payload, qos=0, retain=False)
-    print(f"[ACK] {payload}")
+    # Publier l'état en retained
+    client.publish(TOPIC_ACK, payload, qos=0, retain=True)
+    print(f"[ACK][retained] {payload}")
 
 
 def on_message(client, userdata, msg):
