@@ -43,8 +43,6 @@ LV_IMG_DECLARE( ui_img_1280652718);   // assets/batterie-vide (1).png
 LV_IMG_DECLARE( ui_img_lightoff3_png);   // assets/LightOff3.png
 LV_IMG_DECLARE( ui_img_lighton3_png);   // assets/LightOn3.png
 LV_IMG_DECLARE( ui_img_ellipse_22_png);   // assets/Ellipse 22.png
-LV_IMG_DECLARE( ui_img_stop_png);   // assets/stop.png
-LV_IMG_DECLARE( ui_img_resume_png);   // assets/resume.png
 
 // UI INIT
 void ui_init(void);

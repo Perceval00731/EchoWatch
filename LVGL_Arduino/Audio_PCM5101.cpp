@@ -63,6 +63,20 @@ void Play_Music(const char* directory, const char* fileName) {
     printf("Music Read Failed\r\n");
   vTaskDelay(pdMS_TO_TICKS(100));    
 }
+bool Play_Music_From_FS(fs::FS& fs, const char* path) {
+  if (!path) {
+    return false;
+  }
+  audio.stopSong();
+  bool ret = audio.connecttoFS(fs, path);
+  if(ret)
+    printf("Music Read OK\r\n");
+  else
+    printf("Music Read Failed\r\n");
+  vTaskDelay(pdMS_TO_TICKS(100));
+  return ret;
+}
+
 void Music_pause() {
   if (audio.isRunning()) {            
     audio.pauseResume();             

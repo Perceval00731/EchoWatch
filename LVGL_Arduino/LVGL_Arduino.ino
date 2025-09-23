@@ -35,6 +35,12 @@ const char* mqtt_server = "test.mosquitto.org";
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+static PSRamAudioFS mqttAudioFS;
+static constexpr uint16_t MQTT_AUDIO_BUFFER_SIZE = 61440; // ~60 KB pour la charge utile audio
+static const char* const MQTT_AUDIO_VIRTUAL_PATH = "/mqtt_payload.wav";
+static size_t mqttAudioLastSize = 0;
+
+static void handleMqttAudioPayload(const uint8_t* payload, unsigned int length);
 
 // ---- Variables d'état pour gérer l'échec de connexion ----
 bool wifiConnected = false;
@@ -150,6 +156,30 @@ void mqttMessageColor(uint8_t* payload, unsigned int length) {
   }
 }
 
+static void handleMqttAudioPayload(const uint8_t* payload, unsigned int length) {
+  if (!payload || length == 0) {
+    Serial.println("[MQTT] Payload audio vide");
+    return;
+  }
+  if (length >= MQTT_AUDIO_BUFFER_SIZE) {
+    Serial.printf("[MQTT] Payload audio (%u octets) proche de la limite du buffer (%u)\n", length, MQTT_AUDIO_BUFFER_SIZE);
+  } else {
+    Serial.printf("[MQTT] Payload audio (%u octets)\n", length);
+  }
+  if (!mqttAudioFS.load(payload, length, MQTT_AUDIO_VIRTUAL_PATH)) {
+    Serial.println("[MQTT] Impossible de copier le son dans la PSRAM");
+    return;
+  }
+  mqttAudioLastSize = length;
+  if (!Play_Music_From_FS(mqttAudioFS, MQTT_AUDIO_VIRTUAL_PATH)) {
+    Serial.println("[MQTT] Lecture audio depuis la PSRAM impossible");
+    mqttAudioFS.clear();
+    return;
+  }
+  Serial.printf("[MQTT] Lecture audio PSRAM démarrée (%u octets)\n", (unsigned int)mqttAudioLastSize);
+}
+
+
 // ---- Boucle principale ----
 
 // ---- Heure ---- 
@@ -157,6 +187,7 @@ void mqttMessageColor(uint8_t* payload, unsigned int length) {
 void updateTime() {
   struct tm timeinfo;
   bool updated = false;
+  bool hasChanged = false;
   // Essayer une récupération ultra rapide (0 ms) si le NTP a déjà synchronisé
   if (wifiConnected && ntpConfigured && getLocalTime(&timeinfo, 0)) {
     updated = true;
@@ -198,6 +229,9 @@ void setup() {
   Serial.begin(115200);
   delay(200);
   Serial.println("===== Démarrage =====");
+  if (!client.setBufferSize(MQTT_AUDIO_BUFFER_SIZE)) {
+    Serial.println("[MQTT] Impossible d'allouer le buffer MQTT demandé");
+  }
   Init();
   startWiFiAttempt(); // appel non bloquant
 }
@@ -297,6 +331,7 @@ void loop() {
     PCF85063_Loop();
     updateDisplayInfo();
     sendGyroDataMQTT();
+    sendGyroDataMQTT();
   }
 
   vTaskDelay(pdMS_TO_TICKS(5));
@@ -319,6 +354,58 @@ extern "C" void setVolume(int volume) {
   if (volume < 0) { volume = 0; }
   if (volume > 21) { volume = 21; }
   Volume_adjustment(volume);
+}
+
+void updateSoundDisplayInfo() {
+  // Mise à jour du durationSlider et durationLabel (mm:ss / mm:ss) si la musique est en cours de lecture
+  if (ui_DurationSlider && ui_DurationLabel && audio.isRunning()) {
+      uint32_t musicDuration = audio.getAudioFileDuration();   // durée totale en secondes
+      uint32_t musicElapsed = audio.getAudioCurrentTime();     // temps écoulé en secondes
+
+      if (musicDuration > 0) {
+          // Met à jour le slider
+          int sliderValue = (musicElapsed * 100) / musicDuration;
+          lv_slider_set_value(ui_DurationSlider, sliderValue, LV_ANIM_OFF);
+
+          // Convertir les secondes en mm:ss
+          char buf[16];
+          int elapsedMin = musicElapsed / 60;
+          int elapsedSec = musicElapsed % 60;
+          int durationMin = musicDuration / 60;
+          int durationSec = musicDuration % 60;
+
+          snprintf(buf, sizeof(buf), "%02d:%02d / %02d:%02d", 
+                  elapsedMin, elapsedSec, durationMin, durationSec);
+          lv_label_set_text(ui_DurationLabel, buf);
+      }
+  }
+  else if (ui_DurationLabel) {
+      // Si la musique n'est pas en cours, on affiche juste 00:00 / 00:00
+      lv_label_set_text(ui_DurationLabel, "00:00 / 00:00");
+      if (ui_DurationSlider) {
+          lv_slider_set_value(ui_DurationSlider, 0, LV_ANIM_OFF);
+      }
+  }
+}
+
+void sendGyroDataMQTT() {
+  if (!mqttConnected) return;
+
+  getAccelerometer();
+  getGyroscope();
+
+  // Préparer le message JSON
+  char msg[128];
+  snprintf(msg, sizeof(msg), "{\"accel\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f},\"gyro\":{\"x\":%.2f,\"y\":%.2f,\"z\":%.2f}}",
+           Accel.x, Accel.y, Accel.z,
+           Gyro.x, Gyro.y, Gyro.z);
+
+  // Publier le message
+  if (client.publish("esp32/gyro", msg)) {
+    Serial.println("[MQTT] Données gyroscopiques publiées");
+  } else {
+    Serial.println("[MQTT] Échec de la publication des données gyroscopiques");
+  }
 }
 
 void updateSoundDisplayInfo() {

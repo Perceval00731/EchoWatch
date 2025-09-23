@@ -4,6 +4,8 @@
         "*.wsd": "asciidoc",
         "*.json": "json",
         "ui.h": "c",
-        "string": "cpp"
+        "string": "cpp",
+        "ostream": "cpp",
+        "print": "cpp"
     }
 }

@@ -121,6 +121,7 @@ lv_obj_set_style_text_font(ui_DurationLabel, &lv_font_montserrat_20, LV_PART_MAI
 lv_obj_add_event_cb(ui_VolumeManagerArc, ui_event_VolumeManagerArc, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_SoundPlayerSwitch, ui_event_SoundPlayerSwitch, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_SoundManagerScreen, ui_event_SoundManagerScreen, LV_EVENT_ALL, NULL);
+lv_obj_add_event_cb(ui_SoundPlayerSwitch, ui_event_SoundPlayerSwitch, LV_EVENT_ALL, NULL);
 
 }
 

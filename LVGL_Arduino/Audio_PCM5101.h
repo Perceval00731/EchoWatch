@@ -21,6 +21,7 @@ void Audio_Loop();
 void Audio_Init();
 void Volume_adjustment(uint8_t Volume);
 void Play_Music(const char* directory, const char* fileName);
+bool Play_Music_From_FS(fs::FS& fs, const char* path);
 void Music_pause(); 
 void Music_resume();    
 uint32_t Music_Duration();  
