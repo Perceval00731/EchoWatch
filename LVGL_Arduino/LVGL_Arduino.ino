@@ -6,7 +6,6 @@
 #include "Touch_SPD2010.h"    // Tactile
 #include "LVGL_Driver.h"      // LVGL
 #include "Audio_PCM5101.h"    // Son
-#include "MIC_MSM.h"          // Micro
 #include <WiFi.h>             // Wi-Fi
 #include "SD_Card.h"          // Carte SD
 #include "ui.h"               // UI LVGL
@@ -241,7 +240,6 @@ void Init() {
   SD_Init();          // Initialisation de la carte SD
   Touch_Init();       // Initialisation du tactile
   Audio_Init();       // Initialisation du son
-  MIC_Init();         // Initialisation du microphone
   PCF85063_Init();    // Initialisation de l'horloge temps réel
   QMI8658_Init();     // Initialisation du gyroscope
   ui_init();          // Initialisation de l'interface utilisateur
