@@ -160,10 +160,6 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   else if (strcmp(topic, "esp32/speaker") == 0) { // Message sur esp32/speaker
     // Lis la payload avec un TTS
   }
-  else {
-    Serial.print("Message reçu sur topic inconnu: ");
-    Serial.println(topic);
-  }
   else if (strcmp(topic, "esp32/lampe/ack") == 0) { // confirmation lampe
     // extraire payload en chaîne
     char buf[16];
@@ -181,6 +177,10 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
       else    lv_obj_clear_state(ui_LightSwitch1, LV_STATE_CHECKED);
       lv_obj_clear_state(ui_LightSwitch1, LV_STATE_DISABLED);
     }
+  }
+  else {
+    Serial.print("Message reçu sur topic inconnu: ");
+    Serial.println(topic);
   }
 }
 
