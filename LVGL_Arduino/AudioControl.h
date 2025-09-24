@@ -6,7 +6,7 @@ extern "C" {
 
 void playMusic();
 void setVolume(int volume);
-void playTextToSpeech(const char* text);
+bool playTextToSpeech(const char* text);
 bool playHTTPStream(const char* url);
 
 #ifdef __cplusplus
