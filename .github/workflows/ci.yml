@@ -9,27 +9,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Récupérer le dépôt
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. Installer Arduino CLI
       - name: Set up Arduino CLI
         uses: arduino/setup-arduino-cli@v1
 
-      # 3. Installer le core ESP32 (support S3 inclus)
       - name: Install ESP32 core
         run: |
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
 
-      # 4. Vérifier que les libs locales sont bien détectées
-      - name: Show Arduino environment
+      - name: Add local libraries
         run: |
-          arduino-cli config init
-          arduino-cli lib list
+          mkdir -p ~/Arduino/libraries
+          cp -r libraries/* ~/Arduino/libraries/
 
-      # 5. Compiler ton sketch principal
       - name: Compile EchoWatch (ESP32-S3)
         run: |
           arduino-cli compile \
