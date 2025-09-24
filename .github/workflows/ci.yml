@@ -25,8 +25,8 @@ jobs:
           mkdir -p ~/Arduino/libraries
           cp -r libraries/* ~/Arduino/libraries/
 
-      - name: Compile EchoWatch (ESP32-S3)
+      - name: Compile EchoWatch (ESP32-S3 Huge App)
         run: |
           arduino-cli compile \
-            --fqbn esp32:esp32:esp32s3:CDCOnBoot=default,USBMode=default,UploadSpeed=921600,DebugLevel=none \
+            --fqbn esp32:esp32:esp32s3:CDCOnBoot=default,USBMode=default,UploadSpeed=921600,PartitionScheme=huge_app,DebugLevel=none \
             ./LVGL_Arduino/LVGL_Arduino.ino
