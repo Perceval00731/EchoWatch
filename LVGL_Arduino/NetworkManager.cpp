@@ -12,11 +12,14 @@
 #include "ui.h"
 
 namespace {
-constexpr const char* WIFI_SSID = "iPhone de Melvin";
-constexpr const char* WIFI_PASSWORD = "motdepasse2";
+constexpr const char* WIFI_SSID = "L'espoir fait vivre";
+constexpr const char* WIFI_PASSWORD = "ekip31470";
 
 constexpr const char* MQTT_SERVER = "test.mosquitto.org";
 constexpr uint16_t MQTT_PORT = 1883;
+
+constexpr const char* MQTT_AUDIO_REQUEST_TOPIC = "esp32/audio/request";
+constexpr const char* MQTT_AUDIO_RESPONSE_TOPIC = "esp32/audio/response";
 
 constexpr const char* NTP_SERVER = "time.windows.com";
 constexpr long GMT_OFFSET_SEC = 3600;
@@ -34,6 +37,129 @@ bool g_ntpConfigured = false;
 
 unsigned long g_wifiLastAttempt = 0;
 unsigned long g_mqttLastAttempt = 0;
+
+bool g_audioRequestActive = false;
+bool g_audioWasRunning = false;
+char g_audioCurrentUrl[256] = {0};
+unsigned long g_audioStartTimestamp = 0;
+
+void resetAudioRequestState() {
+  g_audioRequestActive = false;
+  g_audioWasRunning = false;
+  g_audioCurrentUrl[0] = '\0';
+  g_audioStartTimestamp = 0;
+}
+
+void publishAudioResponse(const char* status, const char* url = nullptr, const char* message = nullptr) {
+  StaticJsonDocument<256> doc;
+  doc["status"] = status;
+  if (url && url[0] != '\0') {
+    doc["url"] = url;
+  }
+  if (message && message[0] != '\0') {
+    doc["message"] = message;
+  }
+
+  char buffer[256];
+  size_t len = serializeJson(doc, buffer, sizeof(buffer));
+  if (len >= sizeof(buffer)) {
+    len = sizeof(buffer) - 1;
+  }
+  buffer[len] = '\0';
+  g_mqttClient.publish(MQTT_AUDIO_RESPONSE_TOPIC, buffer);
+}
+
+void handleAudioPlaybackState() {
+  if (!g_audioRequestActive) {
+    return;
+  }
+
+  // Si flux vraiment terminé alors publier l'événement
+  char infoBuf[64];
+  if (AudioControl_consumeStreamFinished(infoBuf, sizeof(infoBuf))) {
+    const char* msg = "lecture terminee";
+    if (infoBuf[0] != '\0') {
+      if (strcmp(infoBuf, g_audioCurrentUrl) == 0) {
+        msg = infoBuf;
+      } else {
+        // Événement EOF d'un flux précédent: ne pas confondre l'utilisateur
+        printf("\n[Audio] EOF d'un autre flux (info='%s' != current='%s')\n", infoBuf, g_audioCurrentUrl);
+      }
+    }
+    publishAudioResponse("completed", g_audioCurrentUrl, msg);
+    resetAudioRequestState();
+    return;
+  }
+
+  bool running = AudioControl_isRunning();
+  if (running) {
+    g_audioWasRunning = true;
+    return;
+  }
+
+  if (g_audioWasRunning) {
+    publishAudioResponse("completed", g_audioCurrentUrl, "lecture terminee");
+    resetAudioRequestState();
+    return;
+  }
+
+  // Si lecture jamais démarré après un court délai, considérer comme une erreur
+  if (g_audioStartTimestamp != 0 && millis() - g_audioStartTimestamp > 2000UL) {
+    publishAudioResponse("error", g_audioCurrentUrl, "lecture non demarree (timeout)");
+    resetAudioRequestState();
+  }
+}
+
+void handleAudioRequest(uint8_t* payload, unsigned int length) {
+  printf("\nMessage reçu sur %s, lecture audio HTTP", MQTT_AUDIO_REQUEST_TOPIC);
+
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, payload, length);
+  if (error) {
+    printf("\nErreur de parsing JSON pour la requête audio: %s", error.c_str());
+    publishAudioResponse("error", "", "JSON invalide");
+    return;
+  }
+
+  const char* url = doc["url"] | "";
+  if (!url || url[0] == '\0') {
+    printf("\nURL manquante dans la requête audio");
+    publishAudioResponse("error", "", "URL manquante");
+    return;
+  }
+
+  if (g_audioRequestActive && g_audioCurrentUrl[0] != '\0') {
+    publishAudioResponse("stopped", g_audioCurrentUrl, "lecture interrompue par une nouvelle requete");
+  }
+
+  bool wasRunning = AudioControl_isRunning();
+  if (wasRunning) {
+    AudioControl_stop();
+    AudioControl_consumeStreamFinished(nullptr, 0);
+  }
+
+  resetAudioRequestState();
+
+  if (strlen(url) >= sizeof(g_audioCurrentUrl)) {
+    printf("\nURL audio trop longue");
+    publishAudioResponse("error", "", "URL trop longue");
+    return;
+  }
+
+  strlcpy(g_audioCurrentUrl, url, sizeof(g_audioCurrentUrl));
+
+  if (!playHTTPStream(g_audioCurrentUrl)) {
+    printf("\nImpossible de démarrer le flux HTTP: %s", g_audioCurrentUrl);
+    publishAudioResponse("error", g_audioCurrentUrl, "impossible de demarrer la lecture");
+    g_audioCurrentUrl[0] = '\0';
+    return;
+  }
+
+  g_audioRequestActive = true;
+  g_audioWasRunning = AudioControl_isRunning();
+  g_audioStartTimestamp = millis();
+  publishAudioResponse("playing", g_audioCurrentUrl, "lecture en cours");
+}
 
 void applyLampDisconnectedState() {
   LampControl_onMqttDisconnected();
@@ -87,7 +213,7 @@ void attemptMQTTOnce() {
     g_mqttClient.subscribe("esp32/sound");
     g_mqttClient.subscribe("esp32/lampe/ack");
     g_mqttClient.subscribe("esp32/tts");
-    g_mqttClient.subscribe("esp32/http");
+    g_mqttClient.subscribe(MQTT_AUDIO_REQUEST_TOPIC);
     g_mqttConnected = true;
     LampControl_onMqttConnected();
   } else {
@@ -138,13 +264,9 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
     response = success ? "Synthèse vocale démarrée" : "Erreur de synthèse vocale";
     g_mqttClient.publish("esp32/tts/response", response);
   }
-  // Lecture d'un audio via flux HTTP (exemple fixe ici mais à modifier)
-  // else if (strcmp(topic, "esp32/http") == 0) {
-  //   printf("\nMessage reçu sur esp32/http, lecture d'un flux HTTP");
-  //   if (playHTTPStream("https://raw.githubusercontent.com/Perceval00731/EchoWatch/master/sample-1.wav")) {
-  //     printf("\nLecture du flux HTTP démarrée");
-  //   }
-  // } 
+  else if (strcmp(topic, MQTT_AUDIO_REQUEST_TOPIC) == 0) {
+    handleAudioRequest(payload, length);
+  }
   // Accusé de réception de la lampe
   else if (strcmp(topic, "esp32/lampe/ack") == 0) {
     handleLampAck(payload, length);
@@ -204,6 +326,8 @@ void NetworkManager_loop() {
       g_mqttClient.loop();
     }
   }
+
+  handleAudioPlaybackState();
 }
 
 bool NetworkManager_isWifiConnected() {
