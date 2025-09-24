@@ -3,7 +3,9 @@ import time
 
 BROKER = "test.mosquitto.org"
 PORT = 1883
-TOPICS = ["esp32/color", "esp32/sound", "esp32/tts", "esp32/gyro"]
+TOPICS = ["esp32/color", "esp32/sound", "esp32/tts", "esp32/gyro", "esp32/lampe", "esp32/http"]
+global readGyro
+readGyro = False
 
 def on_connect(client, userdata, flags, rc):
     print(f"Connecté : {rc}")
@@ -12,13 +14,14 @@ def on_connect(client, userdata, flags, rc):
         print(f"Abonné à {topic}")
 
 def on_message(client, userdata, msg):
-    print(f"Message reçu sur {msg.topic} : {msg.payload.decode()}")
+    if msg.topic == "esp32/gyro" and readGyro:
+        print(f"Données du gyroscope reçues : {msg.payload.decode()}")
     
 def choixAction():
     print("Actions disponibles :")
     print("1. Changer la couleur (topic: esp32/color, payload: couleur)")
     print("2. Jouer un son (topic: esp32/sound, payload: nom_du_son)")
-    print("3. Synthèse vocale (topic: esp32/tts, payload: texte)")
+    print("3. Synthèse vocale (topic: esp32/tts, payload: {texte:\"votre texte\", lang:\"fr\"})")
     print("4. Lire les données du gyroscope (topic: esp32/gyro, payload: 'read')")
     print("5. Switch lampe (topic: esp32/lampe, payload: 'on'/'off')")
     print("6. Quitter")
@@ -27,16 +30,23 @@ def choixAction():
 
 def effectuerAction(action):
     if action == "1":
-        couleur = str(input("Entrez la couleur hexadécimale (ex: #FF0000, #00FF00, #0000FF) : "))
+        couleur = str(input("Entrez la couleur hexadécimale (ex: FF0000, 00FF00, 0000FF) : "))
         client.publish("esp32/color", couleur)
     elif action == "2":
         print("Déclenchement d'un son.")
         client.publish("esp32/sound", "n'importe quel payload, c'est juste un trigger")
     elif action == "3":
         texte = str(input("Entrez le texte à synthétiser : "))
-        client.publish("esp32/tts", texte)
+        lang = str(input("Entrez la langue (ex: 'fr', 'en') : "))
+        client.publish("esp32/tts", f'{{"text": "{texte}", "lang": "{lang}"}}')
     elif action == "4":
-        client.publish("esp32/gyro", "read")
+        global readGyro
+        readGyro = not readGyro
+        if readGyro:
+            print("Lecture des données du gyroscope activée.")
+            client.publish("esp32/gyro", "read")
+        else:
+            print("Lecture des données du gyroscope désactivée.")
     elif action == "5":
         etat = str(input("Entrez 'on' pour allumer ou 'off' pour éteindre la lampe : "))
         if etat in ["on", "off"]:
