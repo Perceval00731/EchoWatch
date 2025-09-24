@@ -1,23 +1,101 @@
-name: C/C++ CI
+name: "Deploy EchoWatch"
+description: >-
+  Compile the EchoWatch Arduino sketches and run optional post-deployment automation.
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+inputs:
+  fqbn:
+    description: >-
+      Fully qualified board name used for the firmware compilation (for example esp32:esp32:esp32s3).
+    required: true
+  sketch-paths:
+    description: >-
+      YAML-format list of sketch directories to compile before deployment.
+    required: false
+    default: |
+      - LVGL_Arduino
+  platforms:
+    description: >-
+      Additional board platforms to install (YAML list). Leave empty to rely on defaults.
+    required: false
+    default: ""
+  libraries:
+    description: >-
+      YAML-format list of library dependencies to install prior to compilation.
+    required: false
+    default: |
+      - source-path: ./
+  cli-version:
+    description: >-
+      Version of the Arduino CLI to use.
+    required: false
+    default: "latest"
+  cli-compile-flags:
+    description: >-
+      YAML-format list of extra flags to pass to the Arduino CLI compiler.
+    required: false
+    default: ""
+  verbose:
+    description: >-
+      Set to true to enable verbose build output.
+    required: false
+    default: "false"
+  sketches-report-path:
+    description: >-
+      Directory where the compilation report should be stored.
+    required: false
+    default: "sketches-reports"
+  enable-deltas-report:
+    description: >-
+      Set to true to produce memory usage deltas between base and head revisions.
+    required: false
+    default: "false"
+  enable-warnings-report:
+    description: >-
+      Set to true to include compiler warning counts in the report.
+    required: false
+    default: "false"
+  github-token:
+    description: >-
+      GitHub token used when the deltas report is enabled on private repositories.
+    required: false
+    default: ""
+  post-compile-script:
+    description: >-
+      Optional shell script to run after a successful compilation (for example flashing or packaging commands).
+    required: false
+    default: ""
+  working-directory:
+    description: >-
+      Working directory used for the optional post-compilation script.
+    required: false
+    default: "."
 
-jobs:
-  build:
+outputs:
+  sketches-report-path:
+    description: >-
+      Path to the folder containing the generated compilation report.
+    value: ${{ inputs.sketches-report-path }}
 
-    runs-on: ubuntu-latest
+runs:
+  using: "composite"
+  steps:
+    - name: Compile Arduino sketches
+      uses: arduino/compile-sketches@v1
+      with:
+        cli-version: ${{ inputs.cli-version }}
+        fqbn: ${{ inputs.fqbn }}
+        libraries: ${{ inputs.libraries }}
+        platforms: ${{ inputs.platforms }}
+        sketch-paths: ${{ inputs.sketch-paths }}
+        cli-compile-flags: ${{ inputs.cli-compile-flags }}
+        verbose: ${{ inputs.verbose }}
+        sketches-report-path: ${{ inputs.sketches-report-path }}
+        github-token: ${{ inputs.github-token }}
+        enable-deltas-report: ${{ inputs.enable-deltas-report }}
+        enable-warnings-report: ${{ inputs.enable-warnings-report }}
 
-    steps:
-    - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+    - name: Post-compilation automation
+      if: ${{ inputs.post-compile-script != '' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: ${{ inputs.post-compile-script }}
