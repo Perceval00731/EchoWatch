@@ -69,11 +69,11 @@ void AudioControl_updateDisplayInfo() {
   }
 }
 
-bool playTextToSpeech(const char* text) {
+bool playTextToSpeech(const char* text, const char* lang) {
   if (audio.isRunning()) {
     audio.stopSong();
   }
-  return audio.connecttospeech(text, "fr");
+  return audio.connecttospeech(text, lang);
 }
 
 bool playHTTPStream(const char* url) {

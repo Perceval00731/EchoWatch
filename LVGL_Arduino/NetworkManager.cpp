@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <time.h>
+#include <ArduinoJson.h>
 
 #include "AudioControl.h"
 #include "LampControl.h"
@@ -41,7 +42,7 @@ void applyLampDisconnectedState() {
 void handleColorMessage(uint8_t* payload, unsigned int length) {
   char colorStr[7] = {0};
   if (length < 6) {
-    Serial.println("Payload couleur invalide");
+    printf("\nPayload couleur invalide");
     return;
   }
 
@@ -72,7 +73,7 @@ void startWiFiAttempt() {
   WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   g_wifiLastAttempt = millis();
-  Serial.println("[WiFi] Tentative de connexion...");
+  printf("\n[WiFi] Tentative de connexion...");
 }
 
 void attemptMQTTOnce() {
@@ -81,7 +82,7 @@ void attemptMQTTOnce() {
   }
 
   if (g_mqttClient.connect("EchoWatchClient")) {
-    Serial.println("[MQTT] Connecté");
+    printf("\n[MQTT] Connecté");
     g_mqttClient.subscribe("esp32/color");
     g_mqttClient.subscribe("esp32/sound");
     g_mqttClient.subscribe("esp32/lampe/ack");
@@ -90,8 +91,7 @@ void attemptMQTTOnce() {
     g_mqttConnected = true;
     LampControl_onMqttConnected();
   } else {
-    Serial.print("[MQTT] Échec code=");
-    Serial.println(g_mqttClient.state());
+    printf("\n[MQTT] Échec code=%d\n", g_mqttClient.state());
     g_mqttConnected = false;
   }
 
@@ -99,23 +99,59 @@ void attemptMQTTOnce() {
 }
 
 void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
+  // Changement de couleur sur l'application FindApp
   if (strcmp(topic, "esp32/color") == 0) {
+    printf("\nMessage reçu sur esp32/color, changement de couleur");
     handleColorMessage(payload, length);
-  } else if (strcmp(topic, "esp32/sound") == 0) {
-    Serial.println("Message reçu sur esp32/sound, jouer/pause musique");
+  }
+  // Commande de lecture/pause de la musique
+  else if (strcmp(topic, "esp32/sound") == 0) {
+    printf("\nMessage reçu sur esp32/sound, jouer/pause musique");
     playMusic();
-  } else if (strcmp(topic, "esp32/tts") == 0) {
-    playTextToSpeech("Test, ceci est un test de synthèse vocale.");
-  } else if (strcmp(topic, "esp32/http") == 0) {
-    Serial.println("Message reçu sur esp32/http, lecture d'un flux HTTP");
-    if (playHTTPStream("https://raw.githubusercontent.com/Perceval00731/EchoWatch/master/sample-1.wav")) {
-      Serial.println("Lecture du flux HTTP démarrée");
+  }
+  // Synthèse vocale avec le texte passé en payload
+  else if (strcmp(topic, "esp32/tts") == 0) {
+    printf("\nMessage reçu sur esp32/tts, synthèse vocale");
+    // Payload forme : { text : "le texte à dire", "lang" : "fr" }
+    char text[256] = {0};
+    char lang[8] = {0};
+    // Extraction des champs avec ArduinoJson
+    StaticJsonDocument<512> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+    // Stock le message d'erreur dans response
+    const char* response = "";
+    if (error) {
+      printf("\nErreur de parsing JSON");
+      response = "Erreur de parsing JSON";
+      g_mqttClient.publish("esp32/tts/response", response);
+      return;
     }
-  } else if (strcmp(topic, "esp32/lampe/ack") == 0) {
+    strlcpy(text, doc["text"] | "", sizeof(text));
+    strlcpy(lang, doc["lang"] | "fr", sizeof(lang));
+    if (text[0] == '\0') {
+      printf("\nTexte vide pour la synthèse vocale");
+      response = "Texte vide pour la synthèse vocale";
+      g_mqttClient.publish("esp32/tts/response", response);
+      return;
+    }
+    bool success = playTextToSpeech(text, lang);
+    response = success ? "Synthèse vocale démarrée" : "Erreur de synthèse vocale";
+    g_mqttClient.publish("esp32/tts/response", response);
+  }
+  // Lecture d'un audio via flux HTTP (exemple fixe ici mais à modifier)
+  // else if (strcmp(topic, "esp32/http") == 0) {
+  //   printf("\nMessage reçu sur esp32/http, lecture d'un flux HTTP");
+  //   if (playHTTPStream("https://raw.githubusercontent.com/Perceval00731/EchoWatch/master/sample-1.wav")) {
+  //     printf("\nLecture du flux HTTP démarrée");
+  //   }
+  // } 
+  // Accusé de réception de la lampe
+  else if (strcmp(topic, "esp32/lampe/ack") == 0) {
     handleLampAck(payload, length);
-  } else {
-    Serial.print("Message reçu sur topic inconnu: ");
-    Serial.println(topic);
+  } 
+  // Topic inconnu
+  else {
+    printf("\nMessage reçu sur topic inconnu: %s\n", topic);
   }
 }
 }  // namespace
@@ -131,8 +167,8 @@ void NetworkManager_loop() {
 
   if (curWifi && !g_wifiConnected) {
     g_wifiConnected = true;
-    Serial.print("[WiFi] Connecté. IP: ");
-    Serial.println(WiFi.localIP());
+    String ipStr = WiFi.localIP().toString();
+    printf("\n[WiFi] Connecté. IP: %s\n", ipStr.c_str());
   } else if (!curWifi && g_wifiConnected) {
     g_wifiConnected = false;
     g_mqttConnected = false;
@@ -149,7 +185,7 @@ void NetworkManager_loop() {
   if (g_wifiConnected && !g_ntpConfigured) {
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
     g_ntpConfigured = true;
-    Serial.println("[NTP] Configuration envoyée");
+    printf("\n[NTP] Configuration envoyée");
   }
 
   bool curMqtt = g_mqttClient.connected();
