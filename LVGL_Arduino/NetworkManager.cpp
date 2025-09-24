@@ -85,6 +85,8 @@ void attemptMQTTOnce() {
     g_mqttClient.subscribe("esp32/color");
     g_mqttClient.subscribe("esp32/sound");
     g_mqttClient.subscribe("esp32/lampe/ack");
+    g_mqttClient.subscribe("esp32/tts");
+    g_mqttClient.subscribe("esp32/http");
     g_mqttConnected = true;
     LampControl_onMqttConnected();
   } else {
@@ -102,8 +104,13 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   } else if (strcmp(topic, "esp32/sound") == 0) {
     Serial.println("Message reçu sur esp32/sound, jouer/pause musique");
     playMusic();
-  } else if (strcmp(topic, "esp32/speaker") == 0) {
-    // TODO: implémenter synthèse vocale si nécessaire
+  } else if (strcmp(topic, "esp32/tts") == 0) {
+    playTextToSpeech("Test, ceci est un test de synthèse vocale.");
+  } else if (strcmp(topic, "esp32/http") == 0) {
+    Serial.println("Message reçu sur esp32/http, lecture d'un flux HTTP");
+    if (playHTTPStream("https://raw.githubusercontent.com/Perceval00731/EchoWatch/master/sample-1.wav")) {
+      Serial.println("Lecture du flux HTTP démarrée");
+    }
   } else if (strcmp(topic, "esp32/lampe/ack") == 0) {
     handleLampAck(payload, length);
   } else {

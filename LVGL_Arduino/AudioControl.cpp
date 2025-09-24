@@ -5,6 +5,22 @@
 
 extern Audio audio;
 
+void audio_info(const char* info) {
+  if (!info) {
+    return;
+  }
+  Serial.print("[Audio] ");
+  Serial.println(info);
+}
+
+void audio_eof_stream(const char* info) {
+  Serial.println("Lecture du flux HTTP terminée");
+  if (info) {
+    Serial.print("[Audio] Source: ");
+    Serial.println(info);
+  }
+}
+
 extern "C" void playMusic() {
   if (audio.isRunning()) {
     printf("Le son en cours, pause.\n");
@@ -51,4 +67,24 @@ void AudioControl_updateDisplayInfo() {
       lv_slider_set_value(ui_DurationSlider, 0, LV_ANIM_OFF);
     }
   }
+}
+
+bool playTextToSpeech(const char* text) {
+  if (audio.isRunning()) {
+    audio.stopSong();
+  }
+  return audio.connecttospeech(text, "fr");
+}
+
+bool playHTTPStream(const char* url) {
+  if (audio.isRunning()) {
+    audio.stopSong();
+  }
+
+  bool started = audio.connecttohost(url);
+  if (!started) {
+    Serial.println("Impossible de démarrer le flux HTTP");
+  }
+
+  return started;
 }
