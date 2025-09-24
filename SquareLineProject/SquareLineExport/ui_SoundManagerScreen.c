@@ -5,7 +5,7 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_SoundManagerScreen = NULL;lv_obj_t *ui_DurationSlider = NULL;lv_obj_t *ui_VolumeManagerArc = NULL;lv_obj_t *ui_SoundPlayerSwitch = NULL;lv_obj_t *ui_VolumeLabel = NULL;lv_obj_t *ui_SoundManagerBorder = NULL;lv_obj_t *ui_DurationLabel = NULL;
+lv_obj_t *ui_SoundManagerScreen = NULL;lv_obj_t *ui_DurationSlider = NULL;lv_obj_t *ui_VolumeManagerArc = NULL;lv_obj_t *ui_VolumeLabel = NULL;lv_obj_t *ui_SoundManagerBorder = NULL;lv_obj_t *ui_DurationLabel = NULL;lv_obj_t *ui_ImgButton4 = NULL;
 // event funtions
 void ui_event_SoundManagerScreen( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
@@ -53,22 +53,6 @@ lv_obj_set_align( ui_VolumeManagerArc, LV_ALIGN_CENTER );
 lv_arc_set_value(ui_VolumeManagerArc, 50);
 lv_arc_set_bg_angles(ui_VolumeManagerArc,180,0);
 
-ui_SoundPlayerSwitch = lv_switch_create(ui_SoundManagerScreen);
-lv_obj_set_width( ui_SoundPlayerSwitch, 103);
-lv_obj_set_height( ui_SoundPlayerSwitch, 55);
-lv_obj_set_x( ui_SoundPlayerSwitch, 0 );
-lv_obj_set_y( ui_SoundPlayerSwitch, 30 );
-lv_obj_set_align( ui_SoundPlayerSwitch, LV_ALIGN_CENTER );
-lv_obj_set_style_bg_color(ui_SoundPlayerSwitch, lv_color_hex(0xA0A0A0), LV_PART_MAIN | LV_STATE_DEFAULT );
-lv_obj_set_style_bg_opa(ui_SoundPlayerSwitch, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-lv_obj_set_style_bg_color(ui_SoundPlayerSwitch, lv_color_hex(0x313134), LV_PART_KNOB | LV_STATE_DEFAULT );
-lv_obj_set_style_bg_opa(ui_SoundPlayerSwitch, 255, LV_PART_KNOB| LV_STATE_DEFAULT);
-lv_obj_set_style_bg_img_src( ui_SoundPlayerSwitch, &ui_img_stop_png, LV_PART_KNOB | LV_STATE_DEFAULT );
-lv_obj_set_style_bg_color(ui_SoundPlayerSwitch, lv_color_hex(0x313134), LV_PART_KNOB | LV_STATE_CHECKED );
-lv_obj_set_style_bg_opa(ui_SoundPlayerSwitch, 255, LV_PART_KNOB| LV_STATE_CHECKED);
-lv_obj_set_style_bg_img_src( ui_SoundPlayerSwitch, &ui_img_resume_png, LV_PART_KNOB | LV_STATE_CHECKED );
-
 ui_VolumeLabel = lv_label_create(ui_SoundManagerScreen);
 lv_obj_set_width( ui_VolumeLabel, LV_SIZE_CONTENT);  /// 1
 lv_obj_set_height( ui_VolumeLabel, LV_SIZE_CONTENT);   /// 1
@@ -94,9 +78,15 @@ lv_obj_set_height( ui_DurationLabel, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_DurationLabel, 0 );
 lv_obj_set_y( ui_DurationLabel, 140 );
 lv_obj_set_align( ui_DurationLabel, LV_ALIGN_CENTER );
+lv_label_set_text(ui_DurationLabel,"00:00 / 2:32");
 lv_obj_set_style_text_color(ui_DurationLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
 lv_obj_set_style_text_opa(ui_DurationLabel, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
 lv_obj_set_style_text_font(ui_DurationLabel, &lv_font_montserrat_20, LV_PART_MAIN| LV_STATE_DEFAULT);
+
+ui_ImgButton4 = lv_imgbtn_create(ui_SoundManagerScreen);
+lv_obj_set_width( ui_ImgButton4, 64);
+lv_obj_set_height( ui_ImgButton4, 64);
+lv_obj_set_align( ui_ImgButton4, LV_ALIGN_CENTER );
 
 lv_obj_add_event_cb(ui_VolumeManagerArc, ui_event_VolumeManagerArc, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_SoundManagerScreen, ui_event_SoundManagerScreen, LV_EVENT_ALL, NULL);
@@ -111,9 +101,9 @@ void ui_SoundManagerScreen_screen_destroy(void)
 ui_SoundManagerScreen= NULL;
 ui_DurationSlider= NULL;
 ui_VolumeManagerArc= NULL;
-ui_SoundPlayerSwitch= NULL;
 ui_VolumeLabel= NULL;
 ui_SoundManagerBorder= NULL;
 ui_DurationLabel= NULL;
+ui_ImgButton4= NULL;
 
 }
