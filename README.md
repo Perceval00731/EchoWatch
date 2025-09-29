@@ -1,5 +1,8 @@
 # EchoWatch – ESP32-S3-Touch-LCD-1.46B
 
+## Client
+- Adrien van den Bossche, pour LODICI, projet de localisation dynamique et intelligente.
+
 ## Composition de l'équipe
 - Romy Chauviere – Scrum Master  
 - Thomas Fusi Belaid – Product Owner  
@@ -9,7 +12,7 @@
 ---
 
 ## Présentation du projet
-EchoWatch est une montre connectée développée sur la carte **ESP32-S3-Touch-LCD-1.46B** (Waveshare).  
+EchoWatch est une montre connectée développée sur la carte **ESP32-S3-Touch-LCD-1.46B** (Waveshare).  Elle vise à être utilisée par des personnes malvoyantes et est accompagnée par des installations connectées dans leur lieu de vie.
 L’objectif est de proposer une IHM interactive et des fonctionnalités connectées autour de MQTT, de l’audio et du Text-to-Speech, afin de rendre la montre autonome et polyvalente.  
 
 Fonctionnalités principales :  
