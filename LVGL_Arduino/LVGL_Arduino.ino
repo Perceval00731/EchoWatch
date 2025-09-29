@@ -20,19 +20,20 @@ void setup() {
   NetworkManager_begin();
   LampControl_setClient(&NetworkManager_getClient());
   LampControl_onMqttDisconnected();
+  GyroPublisher_init();
 }
 
 void loop() {
   Lvgl_Loop();
   NetworkManager_loop();
   LampControl_loop();
+  GyroPublisher_loop();
 
   unsigned long currentMillis = millis();
   if (currentMillis - lastUpdateTime >= 1000UL) {
     lastUpdateTime = currentMillis;
     PCF85063_Loop();
     StatusDisplay_update();
-    GyroPublisher_publish();
   }
 
   vTaskDelay(pdMS_TO_TICKS(5));
