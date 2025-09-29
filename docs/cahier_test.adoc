@@ -1,0 +1,106 @@
+= Cahier De Tests - Abraca-dabra-cadabra
+:toc:
+:toc-title: Sommaire
+
+:Entreprise: Abraca-dabra-cadabra
+:Equipe:  
+
+Date: 29/09/2025
+
+Créé par : _BOUYSSOU Melvin_ | _CHAUVIERE Romy_ | _BIBLOCQUE Nolhan_ | _FUSI-BELAID Thomas_
+
+---
+
+== I. Introduction
+=== 1. Objet 
+[.text-justify]
+Ce document a été produit dans le cadre du développement d'une IHM de montre connectée. Il permet de formaliser les résultats attendus pour chaque comportement documenté.
+
+== II. Pré-Requis 
+[.text-justify]
+L'exécution des tests spécifiés au chapitre suivant requiert :
+
+* Montre connectée à un ordinateur ou une batterie
+* Et pour mener à bien tous les tests une connexion internet
+
+=== 1. Éléments à tester 
+[.text-justify]
+Les fonctionnalités sont testées selon les **fonctionnalités** :
+
+- **Localisation** : application, changement de couleur (chaud-froid)
+- **Audio** : centre de contrôle, signal MQTT
+- **Lumière** : contrôler, vérification/actualisation
+- **Accueil** : heure, batterie, accès aux applications
+
+=== 2. Environnement de test 
+[.text-justify]
+Configuration recommandée :
+
+* Système d’exploitation Windows/MacOS/Linux.
+
+
+== III. Cas de test 
+=== 1. Fonctionnalités localisation 
+
+|====
+
+>|Cas de test 4+|Test-01
+>|Titre 4+|Changement de couleur
+>|Objectif 4+| Vérifier que la couleur change en temps réel
+
+5+|
+^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
+^|Local.1 ^|Envoyer une couleur (hexadecimal) sur le topic MQTT esp32/color ^|Ouvrir l'application "Localisation" (logo bleu) ^|La couleur envoyée s'affiche ^| OK
+
+5+|
+
+5+|Commentaire :
+Ne fonctionne pas sans connexion internet 
+|====
+
+=== 2. Fonctionnalités Audio 
+
+|====
+
+>|Cas de test 4+|Test-02-01
+>|Titre 4+|Lancement de l'audio 
+>|Objectif 4+| Vérifier que l'audio se lance bien
+
+5+|
+^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
+^|Lanc_Audio.1 ^|Appuyer sur le bouton jouer/pause ^|Etre dans le centre de contrôle et que le bouton soit dans l'état pause ^|Le son se joue ^| OK
+^|Lanc_Audio.2 ^|Envoyer un lien de musique via MQTT ^| Aucun ^|Le son se joue ^| OK
+
+5+|
+
+>|Cas de test 4+|Test-02-02
+>|Titre 4+|Contrôles sur l'audio
+>|Objectif 4+| Vérifier que les contrôles fonctionnent
+
+5+|
+^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
+^|Contr_Audio.1 ^|Appuyer sur le bouton jouer/pause ^|Etre dans le centre de contrôle et que le bouton soit dans l'état jouer ^|Le son se met en pause ^| OK
+^|Contr_Audio.2 ^|Augmenter/Baisser le volume avec l'arc ^| Etre dans le centre de contrôle ^|Le volume change en conséquence ^| OK
+^|Contr_Audio.3 ^|Aucun ^| Etre dans le centre de contrôle et le son se joue ^|La durée affichée avance ^| OK
+
+5+|
+
+=== 3. Fonctionnalités Lumière 
+
+|====
+
+>|Cas de test 4+|Test-03-01
+>|Titre 4+|Contrôle des lumières 
+>|Objectif 4+| Vérifier que les lumières sont synchronisées avec la montre
+
+5+|
+^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
+^|Contr_Lum.1 ^|Aucun ^|Etre sur l'application "Lumière", la lumière est affichée allumée/éteinte ^|Son état correspond à ce qui est affiché ^| OK
+^|Contr_Lum.2 ^| Appuyer sur le bouton de la lumière ^| Etre sur l'application "Lumière" et la lumière est éteinte/allumée ^|La lumière correspondante s'allume/s'éteint (signal MQTT) ^| OK
+^|Contr_Lum.3 ^| Aucun ^| L'application n'est pas ouverte ^|L'état de la lumière est toujours synchronisée avec son état réel ^| OK
+
+5+|
+
+5+|Commentaire :
+Quand on sollicite un changement d'état, le signal est envoyé. Pour que l'interface s'actualise, on reçoit la réponse qui confirme le changement d'état (5 secondes de délai d'actualisation)
+|====
