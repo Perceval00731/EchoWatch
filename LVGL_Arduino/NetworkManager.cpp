@@ -9,6 +9,7 @@
 
 #include "AudioControl.h"
 #include "LampControl.h"
+#include "GyroPublisher.h"
 #include "ui.h"
 
 namespace {
@@ -88,6 +89,7 @@ void attemptMQTTOnce() {
     g_mqttClient.subscribe("esp32/lampe/ack");
     g_mqttClient.subscribe("esp32/tts");
     g_mqttClient.subscribe("esp32/http");
+    g_mqttClient.subscribe("esp32/sensors/request");
     g_mqttConnected = true;
     LampControl_onMqttConnected();
   } else {
@@ -148,7 +150,16 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
   // Accusé de réception de la lampe
   else if (strcmp(topic, "esp32/lampe/ack") == 0) {
     handleLampAck(payload, length);
-  } 
+  }
+  // Requête de configuration des capteurs
+  else if (strcmp(topic, "esp32/sensors/request") == 0) {
+    printf("\nMessage reçu sur esp32/sensors/request, configuration des capteurs");
+    char json_str[512] = {0};
+    unsigned int copy_len = (length < sizeof(json_str) - 1) ? length : sizeof(json_str) - 1;
+    memcpy(json_str, payload, copy_len);
+    json_str[copy_len] = '\0';
+    GyroPublisher_handleRequest(json_str);
+  }
   // Topic inconnu
   else {
     printf("\nMessage reçu sur topic inconnu: %s\n", topic);
