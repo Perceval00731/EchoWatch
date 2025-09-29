@@ -84,6 +84,7 @@ Ne fonctionne pas sans connexion internet
 ^|Contr_Audio.3 ^|Aucun ^| Etre dans le centre de contrôle et le son se joue ^|La durée affichée avance ^| OK
 
 5+|
+|====
 
 === 3. Fonctionnalités Lumière 
 
