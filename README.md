@@ -4,10 +4,12 @@
 - Adrien van den Bossche, pour LODICI, projet de localisation dynamique et intelligente.
 
 ## Composition de l'équipe
-- Romy Chauviere – Scrum Master  
-- Thomas Fusi Belaid – Product Owner  
-- Melvin Bouyssou – Développeur  
-- Nolhan Biblocque – Développeur  
+| Membre | Rôle |
+| :---------------: |:---------------:|
+| Romy Chauviere | Scrum Master |
+| Thomas Fusi Belaid | Product Owner |
+| Melvin Bouyssou | Développeur |
+| Nolhan Biblocque | Développeur | 
 
 ---
 
@@ -23,6 +25,22 @@ Fonctionnalités principales :
 - Déclenchement d’objets connectés avec accusé de réception  
 - Visualisation du niveau de batterie (estimation par tension)  
 - Connexion réseau non bloquante  
+
+---
+
+## Réunion avec le client
+
+| Date | Lien vers l'ODJ | Lien vers le CR |
+| :------ | :---: | :---: |
+| 05/09/2024 | [ODJ](https://github.com/Perceval00731/EchoWatch/blob/main/docs/ODJ/ODJ%20%231.pdf) | [CR](https://github.com/Perceval00731/EchoWatch/blob/main/docs/CR/CR%20%231.pdf) |
+| 12/09/2024 | [ODJ](https://github.com/Perceval00731/EchoWatch/blob/main/docs/ODJ/ODJ%20%232.pdf) | [CR](https://github.com/Perceval00731/EchoWatch/blob/main/docs/CR/CR%20%232.pdf) |
+| 18/09/2024 | [ODJ](https://github.com/Perceval00731/EchoWatch/blob/main/docs/ODJ/ODJ%20%233.pdf) | [CR](https://github.com/Perceval00731/EchoWatch/blob/main/docs/CR/CR%20%233.pdf) |
+
+---
+
+## Récap du sprint #1
+
+[Slide](https://www.canva.com/design/DAGzCY39txE/jdT9vtsBRvO_zA0K2MZXgw/edit)
 
 ---
 
