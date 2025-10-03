@@ -13,8 +13,8 @@ extern "C" {
 // SCREEN: ui_SoundManagerScreen
 extern void ui_SoundManagerScreen_screen_init(void);
 extern void ui_SoundManagerScreen_screen_destroy(void);
-extern void ui_event_SoundManagerScreen( lv_event_t * e);
 extern lv_obj_t *ui_SoundManagerScreen;
+extern void ui_event_SoundManagerScreen( lv_event_t * e);
 extern lv_obj_t *ui_DurationSlider;
 extern void ui_event_VolumeManagerArc( lv_event_t * e);
 extern lv_obj_t *ui_VolumeManagerArc;
@@ -22,6 +22,8 @@ extern lv_obj_t *ui_SoundPlayerSwitch;
 extern lv_obj_t *ui_VolumeLabel;
 extern lv_obj_t *ui_SoundManagerBorder;
 extern lv_obj_t *ui_DurationLabel;
+extern void ui_event_SoundBackLanguette( lv_event_t * e);
+extern lv_obj_t *ui_SoundBackLanguette;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus
@@ -29,4 +31,3 @@ extern lv_obj_t *ui_DurationLabel;
 #endif
 
 #endif
-

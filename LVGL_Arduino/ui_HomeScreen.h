@@ -13,9 +13,11 @@ extern "C" {
 // SCREEN: ui_HomeScreen
 extern void ui_HomeScreen_screen_init(void);
 extern void ui_HomeScreen_screen_destroy(void);
-extern void ui_event_HomeScreen( lv_event_t * e);
 extern lv_obj_t *ui_HomeScreen;
+extern void ui_event_HomeScreen( lv_event_t * e);
 extern lv_obj_t *ui_Hour;
+extern void ui_event_Languette( lv_event_t * e);
+extern lv_obj_t *ui_Languette;
 extern void ui_event_LightAppButton( lv_event_t * e);
 extern lv_obj_t *ui_LightAppButton;
 extern void ui_event_FindAppButton( lv_event_t * e);
@@ -32,4 +34,3 @@ extern lv_obj_t *ui_EnergyPanel3;
 #endif
 
 #endif
-

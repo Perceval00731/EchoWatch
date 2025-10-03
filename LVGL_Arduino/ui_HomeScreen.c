@@ -5,15 +5,37 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_HomeScreen = NULL;lv_obj_t *ui_Hour = NULL;lv_obj_t *ui_LightAppButton = NULL;lv_obj_t *ui_FindAppButton = NULL;lv_obj_t *ui_BatteryState = NULL;lv_obj_t *ui_BatteryLabel = NULL;lv_obj_t *ui_EnergyPanel1 = NULL;lv_obj_t *ui_EnergyPanel2 = NULL;lv_obj_t *ui_EnergyPanel3 = NULL;
-// event funtions
-void ui_event_HomeScreen( lv_event_t * e) {
+lv_obj_t *ui_HomeScreen = NULL;lv_obj_t *ui_Hour = NULL;lv_obj_t *ui_LightAppButton = NULL;lv_obj_t *ui_FindAppButton = NULL;lv_obj_t *ui_BatteryState = NULL;lv_obj_t *ui_BatteryLabel = NULL;lv_obj_t *ui_EnergyPanel1 = NULL;lv_obj_t *ui_EnergyPanel2 = NULL;lv_obj_t *ui_EnergyPanel3 = NULL; lv_obj_t *ui_Languette = NULL;
+static bool ui_languette_transitioning = false;
+
+void ui_event_HomeScreen(lv_event_t *e)
+{
+    if (lv_event_get_code(e) == LV_EVENT_SCREEN_LOADED) {
+        ui_languette_transitioning = false;
+    }
+}
+
+static void ui_languette_trigger_change(void)
+{
+    if (ui_languette_transitioning) {
+        return;
+    }
+    ui_languette_transitioning = true;
+    _ui_screen_change( &ui_SoundManagerScreen, LV_SCR_LOAD_ANIM_OVER_BOTTOM, 100, 0, &ui_SoundManagerScreen_screen_init);
+}
+
+void ui_event_Languette( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
-if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_BOTTOM  ) {
-lv_indev_wait_release(lv_indev_get_act());
-      _ui_screen_change( &ui_SoundManagerScreen, LV_SCR_LOAD_ANIM_OVER_BOTTOM, 100, 0, &ui_SoundManagerScreen_screen_init);
-}
+    if ( event_code == LV_EVENT_RELEASED) {
+        ui_languette_trigger_change();
+    }
+    else if ( event_code == LV_EVENT_GESTURE ) {
+        lv_indev_t * indev = lv_event_get_indev(e);
+        if ( indev && lv_indev_get_gesture_dir(indev) == LV_DIR_BOTTOM ) {
+            ui_languette_trigger_change();
+        }
+    }
 }
 
 void ui_event_LightAppButton( lv_event_t * e) {
@@ -37,6 +59,8 @@ if ( event_code == LV_EVENT_RELEASED) {
 void ui_HomeScreen_screen_init(void)
 {
 ui_HomeScreen = lv_obj_create(NULL);
+ui_languette_transitioning = false;
+lv_obj_add_event_cb(ui_HomeScreen, ui_event_HomeScreen, LV_EVENT_SCREEN_LOADED, NULL);
 lv_obj_clear_flag( ui_HomeScreen, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 lv_obj_set_style_bg_color(ui_HomeScreen, lv_color_hex(0x343431), LV_PART_MAIN | LV_STATE_DEFAULT );
 lv_obj_set_style_bg_opa(ui_HomeScreen, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -121,7 +145,20 @@ lv_obj_set_style_bg_opa(ui_EnergyPanel3, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
 
 lv_obj_add_event_cb(ui_LightAppButton, ui_event_LightAppButton, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_FindAppButton, ui_event_FindAppButton, LV_EVENT_ALL, NULL);
-lv_obj_add_event_cb(ui_HomeScreen, ui_event_HomeScreen, LV_EVENT_ALL, NULL);
+
+ui_Languette = lv_obj_create(ui_HomeScreen);
+lv_obj_set_width( ui_Languette, 80);
+lv_obj_set_height( ui_Languette, 52);
+lv_obj_set_align( ui_Languette, LV_ALIGN_TOP_MID );
+lv_obj_set_y( ui_Languette, -1 );
+lv_obj_clear_flag( ui_Languette, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
+lv_obj_add_flag( ui_Languette, LV_OBJ_FLAG_CLICKABLE );
+lv_obj_add_flag( ui_Languette, LV_OBJ_FLAG_GESTURE_BUBBLE );
+lv_obj_set_style_bg_color(ui_Languette, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
+lv_obj_set_style_bg_opa(ui_Languette, 200, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_set_style_radius(ui_Languette, 6, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_add_event_cb(ui_Languette, ui_event_Languette, LV_EVENT_ALL, NULL);
+
 
 }
 
@@ -139,5 +176,6 @@ ui_BatteryLabel= NULL;
 ui_EnergyPanel1= NULL;
 ui_EnergyPanel2= NULL;
 ui_EnergyPanel3= NULL;
+ui_Languette= NULL;
 
 }

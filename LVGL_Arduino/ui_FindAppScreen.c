@@ -5,13 +5,12 @@
 
 #include "ui.h"
 
-lv_obj_t *ui_FindAppScreen = NULL;lv_obj_t *ui_FindAppTitle = NULL;
-// event funtions
-void ui_event_FindAppScreen( lv_event_t * e) {
+lv_obj_t *ui_FindAppScreen = NULL;lv_obj_t *ui_FindAppTitle = NULL; lv_obj_t *ui_FindAppHomeButton = NULL;
+
+void ui_event_FindAppHomeButton( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
-if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_TOP  ) {
-lv_indev_wait_release(lv_indev_get_act());
+if ( event_code == LV_EVENT_RELEASED) {
       _ui_screen_change( &ui_HomeScreen, LV_SCR_LOAD_ANIM_OVER_TOP, 200, 0, &ui_HomeScreen_screen_init);
 }
 }
@@ -29,10 +28,23 @@ lv_obj_set_height( ui_FindAppTitle, LV_SIZE_CONTENT);   /// 1
 lv_obj_set_x( ui_FindAppTitle, 0 );
 lv_obj_set_y( ui_FindAppTitle, -125 );
 lv_obj_set_align( ui_FindAppTitle, LV_ALIGN_CENTER );
-lv_label_set_text(ui_FindAppTitle,"FIND");
-lv_obj_set_style_text_font(ui_FindAppTitle, &lv_font_montserrat_48, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_label_set_text(ui_FindAppTitle,"LOCALISATION");
+lv_obj_set_style_text_font(ui_FindAppTitle, &lv_font_montserrat_44, LV_PART_MAIN| LV_STATE_DEFAULT);
 
-lv_obj_add_event_cb(ui_FindAppScreen, ui_event_FindAppScreen, LV_EVENT_ALL, NULL);
+ui_FindAppHomeButton = lv_btn_create(ui_FindAppScreen);
+lv_obj_set_width( ui_FindAppHomeButton, 90);
+lv_obj_set_height( ui_FindAppHomeButton, 36);
+lv_obj_set_align( ui_FindAppHomeButton, LV_ALIGN_BOTTOM_MID );
+lv_obj_set_y( ui_FindAppHomeButton, -12 );
+lv_obj_add_flag( ui_FindAppHomeButton, LV_OBJ_FLAG_CLICKABLE );
+lv_obj_set_style_bg_color(ui_FindAppHomeButton, lv_color_hex(0x3A3A3A), LV_PART_MAIN | LV_STATE_DEFAULT );
+lv_obj_set_style_bg_opa(ui_FindAppHomeButton, 200, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_set_style_radius(ui_FindAppHomeButton, 18, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_add_event_cb(ui_FindAppHomeButton, ui_event_FindAppHomeButton, LV_EVENT_ALL, NULL);
+
+lv_obj_t *ui_FindAppHomeLabel = lv_label_create(ui_FindAppHomeButton);
+lv_label_set_text(ui_FindAppHomeLabel,"HOME");
+lv_obj_center(ui_FindAppHomeLabel);
 
 }
 
@@ -43,5 +55,6 @@ void ui_FindAppScreen_screen_destroy(void)
 // NULL screen variables
 ui_FindAppScreen= NULL;
 ui_FindAppTitle= NULL;
+ui_FindAppHomeButton= NULL;
 
 }

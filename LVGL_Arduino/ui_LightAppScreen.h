@@ -13,12 +13,13 @@ extern "C" {
 // SCREEN: ui_LightAppScreen
 extern void ui_LightAppScreen_screen_init(void);
 extern void ui_LightAppScreen_screen_destroy(void);
-extern void ui_event_LightAppScreen( lv_event_t * e);
 extern lv_obj_t *ui_LightAppScreen;
 extern lv_obj_t *ui_LightAppTitle;
 extern lv_obj_t *ui_LightLabel1;
 extern lv_obj_t *ui_LightSwitch1;
 extern lv_obj_t *ui_LightCircleBorder;
+extern void ui_event_LightAppHomeButton( lv_event_t * e);
+extern lv_obj_t *ui_LightAppHomeButton;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus
@@ -26,4 +27,3 @@ extern lv_obj_t *ui_LightCircleBorder;
 #endif
 
 #endif
-

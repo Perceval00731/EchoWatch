@@ -13,9 +13,10 @@ extern "C" {
 // SCREEN: ui_FindAppScreen
 extern void ui_FindAppScreen_screen_init(void);
 extern void ui_FindAppScreen_screen_destroy(void);
-extern void ui_event_FindAppScreen( lv_event_t * e);
 extern lv_obj_t *ui_FindAppScreen;
 extern lv_obj_t *ui_FindAppTitle;
+extern void ui_event_FindAppHomeButton( lv_event_t * e);
+extern lv_obj_t *ui_FindAppHomeButton;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus
@@ -23,4 +24,3 @@ extern lv_obj_t *ui_FindAppTitle;
 #endif
 
 #endif
-

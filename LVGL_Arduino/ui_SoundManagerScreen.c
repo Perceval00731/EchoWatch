@@ -13,15 +13,37 @@ void playMusic();
 }
 #endif
 
-lv_obj_t *ui_SoundManagerScreen = NULL;lv_obj_t *ui_DurationSlider = NULL;lv_obj_t *ui_VolumeManagerArc = NULL;lv_obj_t *ui_SoundPlayerSwitch = NULL;lv_obj_t *ui_VolumeLabel = NULL;lv_obj_t *ui_SoundManagerBorder = NULL;lv_obj_t *ui_DurationLabel = NULL;
-// event funtions
-void ui_event_SoundManagerScreen( lv_event_t * e) {
+lv_obj_t *ui_SoundManagerScreen = NULL;lv_obj_t *ui_DurationSlider = NULL;lv_obj_t *ui_VolumeManagerArc = NULL;lv_obj_t *ui_SoundPlayerSwitch = NULL;lv_obj_t *ui_VolumeLabel = NULL;lv_obj_t *ui_SoundManagerBorder = NULL;lv_obj_t *ui_DurationLabel = NULL; lv_obj_t *ui_SoundBackLanguette = NULL;
+static bool ui_sound_languette_transitioning = false;
+
+void ui_event_SoundManagerScreen(lv_event_t *e)
+{
+    if (lv_event_get_code(e) == LV_EVENT_SCREEN_LOADED) {
+        ui_sound_languette_transitioning = false;
+    }
+}
+
+static void ui_sound_languette_trigger_change(void)
+{
+    if (ui_sound_languette_transitioning) {
+        return;
+    }
+    ui_sound_languette_transitioning = true;
+    _ui_screen_change( &ui_HomeScreen, LV_SCR_LOAD_ANIM_OVER_TOP, 100, 0, &ui_HomeScreen_screen_init);
+}
+
+void ui_event_SoundBackLanguette( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
-if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_TOP  ) {
-lv_indev_wait_release(lv_indev_get_act());
-      _ui_screen_change( &ui_HomeScreen, LV_SCR_LOAD_ANIM_OVER_TOP, 100, 0, &ui_HomeScreen_screen_init);
-}
+    if ( event_code == LV_EVENT_RELEASED) {
+        ui_sound_languette_trigger_change();
+    }
+    else if ( event_code == LV_EVENT_GESTURE ) {
+        lv_indev_t * indev = lv_event_get_indev(e);
+        if ( indev && lv_indev_get_gesture_dir(indev) == LV_DIR_TOP ) {
+            ui_sound_languette_trigger_change();
+        }
+    }
 }
 
 void ui_event_VolumeManagerArc( lv_event_t * e) {
@@ -48,6 +70,8 @@ void ui_event_SoundPlayerSwitch( lv_event_t * e) {
 void ui_SoundManagerScreen_screen_init(void)
 {
 ui_SoundManagerScreen = lv_obj_create(NULL);
+ui_sound_languette_transitioning = false;
+lv_obj_add_event_cb(ui_SoundManagerScreen, ui_event_SoundManagerScreen, LV_EVENT_SCREEN_LOADED, NULL);
 lv_obj_clear_flag( ui_SoundManagerScreen, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 lv_obj_set_style_bg_color(ui_SoundManagerScreen, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT );
 lv_obj_set_style_bg_opa(ui_SoundManagerScreen, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
@@ -120,7 +144,19 @@ lv_obj_set_style_text_font(ui_DurationLabel, &lv_font_montserrat_20, LV_PART_MAI
 
 lv_obj_add_event_cb(ui_VolumeManagerArc, ui_event_VolumeManagerArc, LV_EVENT_ALL, NULL);
 lv_obj_add_event_cb(ui_SoundPlayerSwitch, ui_event_SoundPlayerSwitch, LV_EVENT_ALL, NULL);
-lv_obj_add_event_cb(ui_SoundManagerScreen, ui_event_SoundManagerScreen, LV_EVENT_ALL, NULL);
+
+ui_SoundBackLanguette = lv_obj_create(ui_SoundManagerScreen);
+lv_obj_set_width( ui_SoundBackLanguette, 80);
+lv_obj_set_height( ui_SoundBackLanguette, 48);
+lv_obj_set_align( ui_SoundBackLanguette, LV_ALIGN_BOTTOM_MID );
+lv_obj_set_y( ui_SoundBackLanguette, -1 );
+lv_obj_clear_flag( ui_SoundBackLanguette, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
+lv_obj_add_flag( ui_SoundBackLanguette, LV_OBJ_FLAG_CLICKABLE );
+lv_obj_add_flag( ui_SoundBackLanguette, LV_OBJ_FLAG_GESTURE_BUBBLE );
+lv_obj_set_style_bg_color(ui_SoundBackLanguette, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
+lv_obj_set_style_bg_opa(ui_SoundBackLanguette, 200, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_set_style_radius(ui_SoundBackLanguette, 6, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_add_event_cb(ui_SoundBackLanguette, ui_event_SoundBackLanguette, LV_EVENT_ALL, NULL);
 
 }
 
@@ -136,5 +172,6 @@ ui_SoundPlayerSwitch= NULL;
 ui_VolumeLabel= NULL;
 ui_SoundManagerBorder= NULL;
 ui_DurationLabel= NULL;
+ui_SoundBackLanguette= NULL;
 
 }

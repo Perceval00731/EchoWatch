@@ -7,13 +7,12 @@
 // Déclaration de la fonction côté Arduino
 extern void ui_request_lamp_set(int desiredOn);
 
-lv_obj_t *ui_LightAppScreen = NULL;lv_obj_t *ui_LightAppTitle = NULL;lv_obj_t *ui_LightLabel1 = NULL;lv_obj_t *ui_LightSwitch1 = NULL;lv_obj_t *ui_LightCircleBorder = NULL;
-// event funtions
-void ui_event_LightAppScreen( lv_event_t * e) {
+lv_obj_t *ui_LightAppScreen = NULL;lv_obj_t *ui_LightAppTitle = NULL;lv_obj_t *ui_LightLabel1 = NULL;lv_obj_t *ui_LightSwitch1 = NULL;lv_obj_t *ui_LightCircleBorder = NULL; lv_obj_t *ui_LightAppHomeButton = NULL;
+
+void ui_event_LightAppHomeButton( lv_event_t * e) {
     lv_event_code_t event_code = lv_event_get_code(e);
 
-    if ( event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_TOP  ) {
-        lv_indev_wait_release(lv_indev_get_act());
+    if ( event_code == LV_EVENT_RELEASED) {
         _ui_screen_change( &ui_HomeScreen, LV_SCR_LOAD_ANIM_OVER_TOP, 200, 0, &ui_HomeScreen_screen_init);
     }
 }
@@ -99,7 +98,19 @@ lv_obj_set_align( ui_LightCircleBorder, LV_ALIGN_CENTER );
 lv_obj_add_flag( ui_LightCircleBorder, LV_OBJ_FLAG_ADV_HITTEST );   /// Flags
 lv_obj_clear_flag( ui_LightCircleBorder, LV_OBJ_FLAG_SCROLLABLE );    /// Flags
 
-lv_obj_add_event_cb(ui_LightAppScreen, ui_event_LightAppScreen, LV_EVENT_ALL, NULL);
+ui_LightAppHomeButton = lv_btn_create(ui_LightAppScreen);
+lv_obj_set_width( ui_LightAppHomeButton, 90);
+lv_obj_set_height( ui_LightAppHomeButton, 36);
+lv_obj_set_align( ui_LightAppHomeButton, LV_ALIGN_BOTTOM_MID );
+lv_obj_set_y( ui_LightAppHomeButton, -12 );
+lv_obj_set_style_bg_color(ui_LightAppHomeButton, lv_color_hex(0x3A3A3A), LV_PART_MAIN | LV_STATE_DEFAULT );
+lv_obj_set_style_bg_opa(ui_LightAppHomeButton, 200, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_set_style_radius(ui_LightAppHomeButton, 18, LV_PART_MAIN| LV_STATE_DEFAULT);
+lv_obj_add_event_cb(ui_LightAppHomeButton, ui_event_LightAppHomeButton, LV_EVENT_ALL, NULL);
+
+lv_obj_t *ui_LightAppHomeLabel = lv_label_create(ui_LightAppHomeButton);
+lv_label_set_text(ui_LightAppHomeLabel,"HOME");
+lv_obj_center(ui_LightAppHomeLabel);
 
 }
 
@@ -113,5 +124,6 @@ ui_LightAppTitle= NULL;
 ui_LightLabel1= NULL;
 ui_LightSwitch1= NULL;
 ui_LightCircleBorder= NULL;
+ui_LightAppHomeButton= NULL;
 
 }
