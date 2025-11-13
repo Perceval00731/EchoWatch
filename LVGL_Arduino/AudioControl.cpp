@@ -1,9 +1,16 @@
 #include "AudioControl.h"
 
+#include <string.h>
+
 #include "Audio_PCM5101.h"
 #include "ui.h"
 
 extern Audio audio;
+
+namespace {
+volatile bool g_streamFinished = false;
+char g_lastStreamInfo[64] = {0};
+}
 
 void audio_info(const char* info) {
   if (!info) {
@@ -18,7 +25,12 @@ void audio_eof_stream(const char* info) {
   if (info) {
     Serial.print("[Audio] Source: ");
     Serial.println(info);
+    strncpy(g_lastStreamInfo, info, sizeof(g_lastStreamInfo) - 1);
+    g_lastStreamInfo[sizeof(g_lastStreamInfo) - 1] = '\0';
+  } else {
+    g_lastStreamInfo[0] = '\0';
   }
+  g_streamFinished = true;
 }
 
 extern "C" void playMusic() {
@@ -76,15 +88,51 @@ bool playTextToSpeech(const char* text, const char* lang) {
   return audio.connecttospeech(text, lang);
 }
 
-bool playHTTPStream(const char* url) {
+extern "C" bool playHTTPStream(const char* url) {
   if (audio.isRunning()) {
     audio.stopSong();
+    //delay(100); // Laisser le temps à la lib de se réinitialiser
   }
-
+  
   bool started = audio.connecttohost(url);
   if (!started) {
     Serial.println("Impossible de démarrer le flux HTTP");
   }
 
   return started;
+}
+
+void AudioControl_stop() {
+  if (audio.isRunning()) {
+    audio.stopSong();
+  }
+}
+
+bool AudioControl_isRunning() {
+  return audio.isRunning();
+}
+
+bool AudioControl_consumeStreamFinished(char* infoBuffer, size_t bufferLen) {
+  if (!g_streamFinished) {
+    return false;
+  }
+
+  g_streamFinished = false;
+  if (infoBuffer && bufferLen > 0) {
+    if (g_lastStreamInfo[0] != '\0') {
+      strncpy(infoBuffer, g_lastStreamInfo, bufferLen - 1);
+      infoBuffer[bufferLen - 1] = '\0';
+    } else {
+      infoBuffer[0] = '\0';
+    }
+  }
+  return true;
+}
+
+extern "C" unsigned long AudioControl_getElapsed() {
+  return audio.getAudioCurrentTime();
+}
+
+extern "C" unsigned long AudioControl_getDuration() {
+  return audio.getAudioFileDuration();
 }

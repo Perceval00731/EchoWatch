@@ -16,8 +16,11 @@ namespace {
 constexpr const char* WIFI_SSID = "iPhone de Melvin";
 constexpr const char* WIFI_PASSWORD = "motdepasse2";
 
-constexpr const char* MQTT_SERVER = "test.mosquitto.org";
+constexpr const char* MQTT_SERVER = "broker.emqx.io";
 constexpr uint16_t MQTT_PORT = 1883;
+
+constexpr const char* MQTT_AUDIO_REQUEST_TOPIC = "esp32/audio/request";
+constexpr const char* MQTT_AUDIO_RESPONSE_TOPIC = "esp32/audio/response";
 
 constexpr const char* NTP_SERVER = "time.windows.com";
 constexpr long GMT_OFFSET_SEC = 3600;
@@ -35,6 +38,194 @@ bool g_ntpConfigured = false;
 
 unsigned long g_wifiLastAttempt = 0;
 unsigned long g_mqttLastAttempt = 0;
+
+bool g_audioRequestActive = false;
+bool g_audioWasRunning = false;
+char g_audioCurrentUrl[256] = {0};
+unsigned long g_audioStartTimestamp = 0;
+// Timestamp du premier passage en état "running"
+unsigned long g_audioFirstRunningAt = 0;
+
+// constantes de timing
+constexpr unsigned long AUDIO_START_TIMEOUT_MS = 2000UL;
+constexpr unsigned long AUDIO_MIN_PLAYED_MS = 700UL;
+constexpr unsigned long AUDIO_MIN_AUDIBLE_MS = 300UL;
+constexpr unsigned long AUDIO_MIN_ELAPSED_SEC = 1UL;
+constexpr unsigned long AUDIO_SHORT_TRACK_SEC = 1UL;
+
+// normalise et compare des URLs fournies par AudioControl avec l'URL courante
+static void normalizeUrl(const char* in, char* out, size_t outLen) {
+  if (!in) { out[0] = '\0'; return; }
+  const char* p = in;
+  while (strncmp(p, "http://", 7) == 0) p += 7;
+  while (strncmp(p, "https://", 8) == 0) p += 8;
+  strlcpy(out, p, outLen);
+}
+
+static bool urlsMatch(const char* info, const char* current) {
+  if (!info || info[0] == '\0' || !current || current[0] == '\0') return false;
+  char normInfo[128];
+  char normCurrent[128];
+  normalizeUrl(info, normInfo, sizeof(normInfo));
+  normalizeUrl(current, normCurrent, sizeof(normCurrent));
+  if (strcmp(normInfo, normCurrent) == 0) return true;
+  size_t curLen = strlen(normCurrent);
+  size_t infoLen = strlen(normInfo);
+  if (infoLen > 0 && curLen >= infoLen) {
+    const char* tail = normCurrent + (curLen - infoLen);
+    if (strcmp(tail, normInfo) == 0) return true;
+  }
+  return false;
+}
+
+void resetAudioRequestState() {
+  g_audioRequestActive = false;
+  g_audioWasRunning = false;
+  g_audioCurrentUrl[0] = '\0';
+  g_audioStartTimestamp = 0;
+  g_audioFirstRunningAt = 0;
+}
+
+void publishAudioResponse(const char* status, const char* url = nullptr, const char* message = nullptr) {
+  StaticJsonDocument<256> doc;
+  doc["status"] = status;
+  if (url && url[0] != '\0') {
+    doc["url"] = url;
+  }
+  if (message && message[0] != '\0') {
+    doc["message"] = message;
+  }
+
+  char buffer[256];
+  size_t len = serializeJson(doc, buffer, sizeof(buffer));
+  if (len >= sizeof(buffer)) {
+    len = sizeof(buffer) - 1;
+  }
+  buffer[len] = '\0';
+  g_mqttClient.publish(MQTT_AUDIO_RESPONSE_TOPIC, buffer);
+}
+
+void handleAudioPlaybackState() {
+  if (!g_audioRequestActive) {
+    return;
+  }
+
+  // Si flux vraiment terminé alors publier l'événement
+  char infoBuf[64];
+  if (AudioControl_consumeStreamFinished(infoBuf, sizeof(infoBuf))) {
+    // si EOF ne correspond pas à l'URL courante alors c'est un ancien flux et on l'ignore
+    if (infoBuf[0] != '\0' && strcmp(infoBuf, g_audioCurrentUrl) != 0) {
+      if (!urlsMatch(infoBuf, g_audioCurrentUrl)) {
+        char normInfo[128];
+        char normCurrent[128];
+        normalizeUrl(infoBuf, normInfo, sizeof(normInfo));
+        normalizeUrl(g_audioCurrentUrl, normCurrent, sizeof(normCurrent));
+        printf("\n[Audio] EOF ignoré (info='%s' normalisé='%s' != courant='%s' normalisé='%s')\n", infoBuf, normInfo, g_audioCurrentUrl, normCurrent);
+        return; // ne pas considérer ce flux comme terminé
+      } else {
+        char normInfo[128];
+        normalizeUrl(infoBuf, normInfo, sizeof(normInfo));
+        printf("\n[Audio] EOF associé via normalisation (info='%s' -> '%s')\n", infoBuf, normInfo);
+      }
+    }
+    publishAudioResponse("completed", g_audioCurrentUrl, "lecture terminee");
+    resetAudioRequestState();
+    return;
+  }
+
+  bool running = AudioControl_isRunning();
+  if (running) {
+    g_audioWasRunning = true;
+    if (g_audioFirstRunningAt == 0) {
+      g_audioFirstRunningAt = millis();
+    }
+    return;
+  }
+
+  if (g_audioWasRunning) {
+    // décider entre erreur et completed pour arrêts précoces
+    // critères de "lecture réussie":
+    // - temps mur (millis) de lecture >= 700ms, OU
+    // - elapsed (en s) >= 1, OU
+    // - durée connue très courte (<= 1s)
+  unsigned long elapsed = AudioControl_getElapsed();
+  unsigned long duration = AudioControl_getDuration();
+  unsigned long playedMs = (g_audioFirstRunningAt > 0) ? (millis() - g_audioFirstRunningAt) : 0;
+
+  bool shortKnownTrack = (duration > 0 && duration <= AUDIO_SHORT_TRACK_SEC);
+  bool enoughWallClock = (playedMs >= AUDIO_MIN_PLAYED_MS);
+  bool enoughElapsed = (elapsed >= AUDIO_MIN_ELAPSED_SEC);
+  bool audibleButNotCounted = (elapsed == 0 && playedMs >= AUDIO_MIN_AUDIBLE_MS);
+
+    if (enoughWallClock || enoughElapsed || shortKnownTrack || audibleButNotCounted) {
+      publishAudioResponse("completed", g_audioCurrentUrl, "lecture terminee");
+    } else {
+      publishAudioResponse("error", g_audioCurrentUrl, "lecture arretee trop tot (<1s)");
+    }
+    resetAudioRequestState();
+    return;
+  }
+
+  // Si lecture jamais démarré après un court délai, considérer comme une erreur
+  if (g_audioStartTimestamp != 0 && millis() - g_audioStartTimestamp > AUDIO_START_TIMEOUT_MS) {
+    publishAudioResponse("error", g_audioCurrentUrl, "lecture non demarree (timeout)");
+    resetAudioRequestState();
+  }
+}
+
+void handleAudioRequest(uint8_t* payload, unsigned int length) {
+  printf("\n[handleAudioRequest] DEBUT - Message reçu sur %s", MQTT_AUDIO_REQUEST_TOPIC);
+
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, payload, length);
+  if (error) {
+    printf("\n[handleAudioRequest] ERREUR parsing JSON: %s", error.c_str());
+    publishAudioResponse("error", "", "JSON invalide");
+    return;
+  }
+
+  const char* url = doc["url"] | "";
+  if (!url || url[0] == '\0') {
+    printf("\n[handleAudioRequest] ERREUR: URL manquante");
+    publishAudioResponse("error", "", "URL manquante");
+    return;
+  }
+
+  if (g_audioRequestActive && g_audioCurrentUrl[0] != '\0') {
+    publishAudioResponse("stopped", g_audioCurrentUrl, "lecture interrompue par une nouvelle requete");
+  }
+
+  bool wasRunning = AudioControl_isRunning();
+  if (wasRunning) {
+    AudioControl_stop();
+    delay(150);
+    int eofCount = 0;
+    while (AudioControl_consumeStreamFinished(nullptr, 0)) {
+      eofCount++;
+    }
+  }
+
+  resetAudioRequestState();
+
+  if (strlen(url) >= sizeof(g_audioCurrentUrl)) {
+    printf("\nURL audio trop longue");
+    publishAudioResponse("error", "", "URL trop longue");
+    return;
+  }
+
+  strlcpy(g_audioCurrentUrl, url, sizeof(g_audioCurrentUrl));
+  if (!playHTTPStream(g_audioCurrentUrl)) {
+    printf("\nImpossible de démarrer le flux HTTP: %s", g_audioCurrentUrl);
+    publishAudioResponse("error", g_audioCurrentUrl, "impossible de demarrer la lecture");
+    g_audioCurrentUrl[0] = '\0';
+    return;
+  }
+
+  g_audioRequestActive = true;
+  g_audioWasRunning = AudioControl_isRunning();
+  g_audioStartTimestamp = millis();
+  publishAudioResponse("playing", g_audioCurrentUrl, "lecture en cours");
+}
 
 void applyLampDisconnectedState() {
   LampControl_onMqttDisconnected();
@@ -88,6 +279,7 @@ void attemptMQTTOnce() {
     g_mqttClient.subscribe("esp32/sound");
     g_mqttClient.subscribe("esp32/lampe/ack");
     g_mqttClient.subscribe("esp32/tts");
+    g_mqttClient.subscribe(MQTT_AUDIO_REQUEST_TOPIC);
     g_mqttClient.subscribe("esp32/http");
     g_mqttClient.subscribe("esp32/sensors/request");
     g_mqttConnected = true;
@@ -140,13 +332,9 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
     response = success ? "Synthèse vocale démarrée" : "Erreur de synthèse vocale";
     g_mqttClient.publish("esp32/tts/response", response);
   }
-  // Lecture d'un audio via flux HTTP (exemple fixe ici mais à modifier)
-  // else if (strcmp(topic, "esp32/http") == 0) {
-  //   printf("\nMessage reçu sur esp32/http, lecture d'un flux HTTP");
-  //   if (playHTTPStream("https://raw.githubusercontent.com/Perceval00731/EchoWatch/master/sample-1.wav")) {
-  //     printf("\nLecture du flux HTTP démarrée");
-  //   }
-  // } 
+  else if (strcmp(topic, MQTT_AUDIO_REQUEST_TOPIC) == 0) {
+    handleAudioRequest(payload, length);
+  }
   // Accusé de réception de la lampe
   else if (strcmp(topic, "esp32/lampe/ack") == 0) {
     handleLampAck(payload, length);
@@ -215,6 +403,8 @@ void NetworkManager_loop() {
       g_mqttClient.loop();
     }
   }
+
+  handleAudioPlaybackState();
 }
 
 bool NetworkManager_isWifiConnected() {
