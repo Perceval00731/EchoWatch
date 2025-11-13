@@ -1253,6 +1253,13 @@ bool Audio::latinToUTF8(char* buff, size_t bufflen) {
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 size_t Audio::readAudioHeader(uint32_t bytes) {
     size_t bytesReaded = 0;
+    // Autodetect WAV if codec not set but RIFF/WAVE signature is present
+    if(m_codec == CODEC_NONE && bytes >= 12) {
+        uint8_t* p = InBuff.getReadPtr();
+        if(p && p[0]=='R' && p[1]=='I' && p[2]=='F' && p[3]=='F' && p[8]=='W' && p[9]=='A' && p[10]=='V' && p[11]=='E') {
+            m_codec = CODEC_WAV;
+        }
+    }
     if(m_codec == CODEC_WAV) {
         int res = read_WAV_Header(InBuff.getReadPtr(), bytes);
         if(res >= 0) bytesReaded = res;
@@ -3989,6 +3996,9 @@ bool Audio::parseContentType(char* ct) {
 
     strlower(ct);
     trim(ct);
+    // remove optional parameters (e.g., "audio/wav; charset=binary")
+    char* sc = strchr(ct, ';');
+    if(sc) { *sc = '\0'; trim(ct); }
 
     m_codec = CODEC_NONE;
     int ct_val = CT_NONE;
@@ -4007,6 +4017,9 @@ bool Audio::parseContentType(char* ct) {
     else if(!strcmp(ct, "audio/x-m4a"))                   ct_val = CT_M4A;
     else if(!strcmp(ct, "audio/wav"))                     ct_val = CT_WAV;
     else if(!strcmp(ct, "audio/x-wav"))                   ct_val = CT_WAV;
+    else if(!strcmp(ct, "audio/wave"))                    ct_val = CT_WAV;
+    else if(!strcmp(ct, "audio/x-wave"))                  ct_val = CT_WAV;
+    else if(!strcmp(ct, "audio/vnd.wave"))                ct_val = CT_WAV;
     else if(!strcmp(ct, "audio/flac"))                    ct_val = CT_FLAC;
     else if(!strcmp(ct, "audio/x-flac"))                  ct_val = CT_FLAC;
     else if(!strcmp(ct, "audio/scpls"))                   ct_val = CT_PLS;
@@ -4076,6 +4089,10 @@ bool Audio::parseContentType(char* ct) {
             if(m_expectedCodec == CODEC_MP3) {
                 m_codec = CODEC_MP3;
                 if(m_f_Log) log_i("set ct from M3U8 to MP3");
+            }
+            if(m_expectedCodec == CODEC_WAV) {
+                m_codec = CODEC_WAV;
+                if(m_f_Log) log_i("set ct from URL extension to WAV");
             }
 
             if(m_expectedPlsFmt == FORMAT_ASX) {

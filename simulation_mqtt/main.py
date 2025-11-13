@@ -3,7 +3,7 @@ import json
 import paho.mqtt.client as mqtt
 import time
 
-BROKER = "test.mosquitto.org"
+BROKER = "broker.emqx.io"
 PORT = 1883
 # Topics
 TOPIC_COLOR = "esp32/color"
@@ -126,8 +126,11 @@ def effectuerAction(action):
     elif action == "6":
         url = str(input("Entrez l'URL du fichier audio (MP3/WAV) : ")).strip()
         if url:
+            if not url.startswith("http://") and not url.startswith("https://"):
+                url = "https://" + url
             payload = json.dumps({"url": url})
             client.publish(TOPIC_AUDIO_REQUEST, payload)
+            print(f"[DEBUG] URL envoyée: {url}")
         else:
             print("URL vide, requête annulée.")
     elif action == "7":

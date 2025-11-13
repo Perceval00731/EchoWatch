@@ -88,11 +88,12 @@ bool playTextToSpeech(const char* text, const char* lang) {
   return audio.connecttospeech(text, lang);
 }
 
-bool playHTTPStream(const char* url) {
+extern "C" bool playHTTPStream(const char* url) {
   if (audio.isRunning()) {
     audio.stopSong();
+    //delay(100); // Laisser le temps à la lib de se réinitialiser
   }
-
+  
   bool started = audio.connecttohost(url);
   if (!started) {
     Serial.println("Impossible de démarrer le flux HTTP");
@@ -126,4 +127,12 @@ bool AudioControl_consumeStreamFinished(char* infoBuffer, size_t bufferLen) {
     }
   }
   return true;
+}
+
+extern "C" unsigned long AudioControl_getElapsed() {
+  return audio.getAudioCurrentTime();
+}
+
+extern "C" unsigned long AudioControl_getDuration() {
+  return audio.getAudioFileDuration();
 }

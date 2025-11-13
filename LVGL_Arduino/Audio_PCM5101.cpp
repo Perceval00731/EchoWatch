@@ -12,7 +12,7 @@ void Audio_Init() {
   #else
     audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   #endif
-  audio.setVolume(10); // 0...21    
+  audio.setVolume(21); // 0...21    
 
   esp_timer_handle_t audio_tick_timer = NULL;
   const esp_timer_create_args_t audio_tick_timer_args = {
