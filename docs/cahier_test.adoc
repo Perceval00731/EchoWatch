@@ -1,8 +1,8 @@
-= Cahier De Tests
+= Cahier De Tests - Echo Watch
 :toc:
 :toc-title: Sommaire
 
-:Entreprise: Abraca-dabra-cadabra
+:Entreprise: Echo Watch
 :Equipe:  
 
 Date: 29/09/2025
@@ -84,6 +84,35 @@ Ne fonctionne pas sans connexion internet
 ^|Contr_Audio.3 ^|Aucun ^| Etre dans le centre de contrôle et le son se joue ^|La durée affichée avance ^| OK
 
 5+|
+|====
+
+=== 2.1 Lecture d'un MP3 via MQTT
+
+|====
+
+>|Cas de test 4+|Test-02-03
+>|Titre 4+|Lecture MP3 via MQTT (URL)
+>|Objectif 4+|Vérifier que la montre lance la lecture d'un fichier MP3 dont l'URL est reçue par MQTT
+
+5+|
+^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
+^|Lanc_Audio.3 ^|Envoyer une URL de MP3 sur le topic MQTT `esp32/audio/request` (JSON {"url":"..."} ou payload brut contenant l'URL) ^|La montre publie `playing` sur `esp32/audio/response`, lance la lecture du flux et, à la fin, publie `completed` (ou `error` en cas d'échec) ^|Montre sous tension, connectée au WiFi, client MQTT connecté (broker accessible), volume non nul ^|  OK
+
+5+|
+
+5+|Exemples de commandes pour tester :
+
+[source,bash]
+----
+# Envoi en JSON
+mosquitto_pub -h test.mosquitto.org -t esp32/audio/request -m '{"url":"https://example.com/track.mp3"}'
+
+# Envoi en payload brut (URL seule)
+mosquitto_pub -h test.mosquitto.org -t esp32/audio/request -m 'https://example.com/track.mp3'
+----
+
+5+|Commentaire :
+La réponse attendue peut être observée en s'abonnant au topic `esp32/audio/response`. Si la librairie audio ne supporte pas HTTPS, tester avec une URL HTTP ou adapter la configuration TLS de la bibliothèque audio.
 |====
 
 === 3. Fonctionnalités Lumière 
