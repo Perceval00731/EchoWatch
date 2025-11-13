@@ -1,4 +1,4 @@
-= Cahier De Tests - Abraca-dabra-cadabra
+= Cahier De Tests
 :toc:
 :toc-title: Sommaire
 
