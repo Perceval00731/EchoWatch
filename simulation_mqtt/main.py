@@ -25,6 +25,9 @@ TOPICS = [
     TOPIC_AUDIO_RESPONSE,
 ]
 
+# MQTT client
+client = mqtt.Client()
+
 # États locaux
 global readGyro
 readGyro = False
@@ -47,8 +50,8 @@ def norm(payload: bytes) -> str:
 
 def on_connect(client, userdata, flags, rc):
     print(f"Connecté : {rc}")
-    for topic in SUB_TOPICS:
-        _client.subscribe(topic)
+    for topic in TOPICS:
+        client.subscribe(topic)
         print(f"Abonné à {topic}")
 
 def on_message(client, userdata, msg):
@@ -190,22 +193,9 @@ client.loop_start()
 
 try:
     while True:
-        action = choix_action()
-        if action == "1":
-            envoyer_couleur()
-        elif action == "2":
-            jouer_son()
-        elif action == "3":
-            envoyer_tts()
-        elif action == "4":
-            configurer_capteurs()
-        elif action == "5":
-            basculer_affichage_capteurs()
-        elif action == "6":
-            print("Quitter le programme.")
+        action = choixAction()
+        if not effectuerAction(action):
             break
-        else:
-            print("Action non reconnue.")
 except KeyboardInterrupt:
     print("Interruption utilisateur.")
 

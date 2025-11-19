@@ -13,8 +13,8 @@
 #include "ui.h"
 
 namespace {
-constexpr const char* WIFI_SSID = "iPhone de Melvin";
-constexpr const char* WIFI_PASSWORD = "motdepasse2";
+constexpr const char* WIFI_SSID = "L'espoir fait vivre";
+constexpr const char* WIFI_PASSWORD = "ekip31470";
 
 constexpr const char* MQTT_SERVER = "broker.emqx.io";
 constexpr uint16_t MQTT_PORT = 1883;
