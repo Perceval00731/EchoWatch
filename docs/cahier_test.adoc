@@ -1,8 +1,8 @@
-= Cahier De Tests - Echo Watch
+= Cahier De Tests
 :toc:
 :toc-title: Sommaire
 
-:Entreprise: Echo Watch
+:Entreprise: EchoWatch
 :Equipe:  
 
 Date: 29/09/2025
@@ -14,22 +14,22 @@ Créé par : _BOUYSSOU Melvin_ | _CHAUVIERE Romy_ | _BIBLOCQUE Nolhan_ | _FUSI-B
 == I. Introduction
 === 1. Objet 
 [.text-justify]
-Ce document a été produit dans le cadre du développement d'une IHM de montre connectée. Il permet de formaliser les résultats attendus pour chaque comportement documenté.
+Ce document a été produit dans le cadre du développement d'une IHM de montre connectée **EchoWatch**. Il permet de formaliser les résultats attendus pour chaque comportement documenté.
 
 == II. Pré-Requis 
 [.text-justify]
 L'exécution des tests spécifiés au chapitre suivant requiert :
 
-* Montre connectée à un ordinateur ou une batterie
-* Et pour mener à bien tous les tests une connexion internet
+* Montre EchoWatch connectée à un ordinateur ou une batterie
+* Une connexion internet pour garantir le bon fonctionnement des tests
 
 === 1. Éléments à tester 
 [.text-justify]
-Les fonctionnalités sont testées selon les **fonctionnalités** :
+Les fonctionnalités sont testées selon les **fonctions** :
 
 - **Localisation** : application, changement de couleur (chaud-froid)
-- **Audio** : centre de contrôle, signal MQTT
-- **Lumière** : contrôler, vérification/actualisation
+- **Audio** : centre de contrôle, lecture via MQTT, TTS
+- **Lumière** : contrôle, synchronisation MQTT
 - **Accueil** : heure, batterie, accès aux applications
 
 === 2. Environnement de test 
@@ -38,19 +38,18 @@ Configuration recommandée :
 
 * Système d’exploitation Windows/MacOS/Linux.
 
-
 == III. Cas de test 
+
 === 1. Fonctionnalités localisation 
 
 |====
-
 >|Cas de test 4+|Test-01
 >|Titre 4+|Changement de couleur
 >|Objectif 4+| Vérifier que la couleur change en temps réel
 
 5+|
-^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
-^|Local.1 ^|Envoyer une couleur (hexadecimal) sur le topic MQTT esp32/color ^|Ouvrir l'application "Localisation" (logo bleu) ^|La couleur envoyée s'affiche ^| OK
+^|ID ^|Action ^|Pré-conditions ^|Comportement attendu ^|Résultat
+^|Local.1 ^|Envoyer une couleur (hexadecimal) sur le topic MQTT `esp32/color` ^|Être dans l'application "Localisation" (logo bleu) ^|La couleur affichée change et correspond à la valeur envoyée ^| OK
 
 5+|
 
@@ -58,79 +57,95 @@ Configuration recommandée :
 Ne fonctionne pas sans connexion internet 
 |====
 
+---
+
 === 2. Fonctionnalités Audio 
 
-|====
+==== Test-02-01 — Lancement de l'audio
 
+|====
 >|Cas de test 4+|Test-02-01
 >|Titre 4+|Lancement de l'audio 
 >|Objectif 4+| Vérifier que l'audio se lance bien
 
 5+|
-^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
-^|Lanc_Audio.1 ^|Appuyer sur le bouton jouer/pause ^|Etre dans le centre de contrôle et que le bouton soit dans l'état pause ^|Le son se joue ^| OK
-^|Lanc_Audio.2 ^|Envoyer un lien de musique via MQTT ^| Aucun ^|Le son se joue ^| OK
+^|ID ^|Action ^|Pré-conditions ^|Comportement attendu ^|Résultat
+^|Lanc_Audio.1 ^|Appuyer sur le bouton jouer/pause ^|Être dans le centre de contrôle et que le bouton soit dans l'état "pause" ^|Le son démarre et l'icône passe à "pause" ^| OK
 
 5+|
+|====
 
+==== Test-02-02 — Contrôles sur l'audio
+
+|====
 >|Cas de test 4+|Test-02-02
 >|Titre 4+|Contrôles sur l'audio
 >|Objectif 4+| Vérifier que les contrôles fonctionnent
 
 5+|
-^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
-^|Contr_Audio.1 ^|Appuyer sur le bouton jouer/pause ^|Etre dans le centre de contrôle et que le bouton soit dans l'état jouer ^|Le son se met en pause ^| OK
-^|Contr_Audio.2 ^|Augmenter/Baisser le volume avec l'arc ^| Etre dans le centre de contrôle ^|Le volume change en conséquence ^| OK
-^|Contr_Audio.3 ^|Aucun ^| Etre dans le centre de contrôle et le son se joue ^|La durée affichée avance ^| OK
+^|ID ^|Action ^|Pré-conditions ^|Comportement attendu ^|Résultat
+^|Contr_Audio.1 ^|Appuyer sur le bouton jouer/pause ^|Être dans le centre de contrôle et le son est en lecture ^|Le son se met en pause et l’icône passe à "lecture" ^| OK
+^|Contr_Audio.2 ^|Augmenter/Baisser le volume avec l'arc ^|Être dans le centre de contrôle ^|Le volume augmente/diminue visiblement et auditivement ^| OK
+^|Contr_Audio.3 ^|Aucun ^|Être dans le centre de contrôle et le son se joue ^|La durée affichée avance progressivement ^| OK
 
 5+|
 |====
 
-=== 2.1 Lecture d'un MP3 via MQTT
+==== Test-02-03 — Lecture via URL MP3
 
 |====
-
 >|Cas de test 4+|Test-02-03
->|Titre 4+|Lecture MP3 via MQTT (URL)
->|Objectif 4+|Vérifier que la montre lance la lecture d'un fichier MP3 dont l'URL est reçue par MQTT
+>|Titre 4+|Lecture d'un fichier MP3 via URL
+>|Objectif 4+| Vérifier que la montre peut lire un fichier audio distant envoyé via MQTT
 
 5+|
-^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
-^|Lanc_Audio.3 ^|Envoyer une URL de MP3 sur le topic MQTT `esp32/audio/request` (JSON {"url":"..."} ou payload brut contenant l'URL) ^|La montre publie `playing` sur `esp32/audio/response`, lance la lecture du flux et, à la fin, publie `completed` (ou `error` en cas d'échec) ^|Montre sous tension, connectée au WiFi, client MQTT connecté (broker accessible), volume non nul ^|  OK
+^|ID ^|Action ^|Pré-conditions ^|Comportement attendu ^|Résultat
+^|Audio_URL.1 ^|Envoyer via MQTT une URL valide pointant vers un fichier MP3 (ex : https://...) ^|Aucun ^|La montre télécharge/stream le fichier et commence la lecture automatiquement ^| OK
+^|Audio_URL.2 ^|Envoyer une URL invalide ou un format non-MP3 ^|Aucun ^|La montre ne lance aucune lecture et peut afficher une erreur ^| OK
 
 5+|
-
-5+|Exemples de commandes pour tester :
-
-[source,bash]
-----
-# Envoi en JSON
-mosquitto_pub -h test.mosquitto.org -t esp32/audio/request -m '{"url":"https://example.com/track.mp3"}'
-
-# Envoi en payload brut (URL seule)
-mosquitto_pub -h test.mosquitto.org -t esp32/audio/request -m 'https://example.com/track.mp3'
-----
 
 5+|Commentaire :
-La réponse attendue peut être observée en s'abonnant au topic `esp32/audio/response`. Si la librairie audio ne supporte pas HTTPS, tester avec une URL HTTP ou adapter la configuration TLS de la bibliothèque audio.
+Test dépendant de la connexion internet et de la disponibilité du serveur hébergeant le MP3.
 |====
+
+==== Test-02-04 — Déclenchement TTS (texte + langue)
+
+|====
+>|Cas de test 4+|Test-02-04
+>|Titre 4+|Déclenchement du Text-to-Speech
+>|Objectif 4+| Vérifier qu’un texte envoyé via MQTT est converti en audio dans la langue spécifiée
+
+5+|
+^|ID ^|Action ^|Pré-conditions ^|Comportement attendu ^|Résultat
+^|TTS.1 ^|Envoyer via MQTT un JSON contenant : {"text":"Bonjour", "lang":"fr"} ^|Aucun ^|La montre génère la voix via TTS et lit le texte en français ^| OK
+^|TTS.2 ^|Envoyer une langue non supportée ^|Aucun ^|Un message d’erreur est affiché ou la langue par défaut est utilisée ^| OK
+^|TTS.3 ^|Envoyer un texte vide ^|Aucun ^|Aucun son n’est produit ^| OK
+
+5+|
+
+5+|Commentaire :
+La qualité et le délai dépendent du service TTS et de la connexion internet.
+|====
+
+---
 
 === 3. Fonctionnalités Lumière 
 
 |====
-
 >|Cas de test 4+|Test-03-01
 >|Titre 4+|Contrôle des lumières 
 >|Objectif 4+| Vérifier que les lumières sont synchronisées avec la montre
 
 5+|
-^|ID ^|Action ^|Comportement attendu ^|Pré-conditions ^|Résultat
-^|Contr_Lum.1 ^|Aucun ^|Etre sur l'application "Lumière", la lumière est affichée allumée/éteinte ^|Son état correspond à ce qui est affiché ^| OK
-^|Contr_Lum.2 ^| Appuyer sur le bouton de la lumière ^| Etre sur l'application "Lumière" et la lumière est éteinte/allumée ^|La lumière correspondante s'allume/s'éteint (signal MQTT) ^| OK
-^|Contr_Lum.3 ^| Aucun ^| L'application n'est pas ouverte ^|L'état de la lumière est toujours synchronisée avec son état réel ^| OK
+^|ID ^|Action ^|Pré-conditions ^|Comportement attendu ^|Résultat
+^|Contr_Lum.1 ^|Aucun ^|Être sur l'application "Lumière", l’état actuel est affiché ^|L’état affiché correspond réellement à l’état de la lumière ^| OK
+^|Contr_Lum.2 ^|Appuyer sur le bouton de la lumière ^|Être sur l’application "Lumière" et la lumière est allumée/éteinte ^|La lumière bascule d’état et se synchronise via MQTT ^| OK
+^|Contr_Lum.3 ^|Aucun ^|L'application "Lumière" n’est pas ouverte ^|L’état de la lumière reste synchronisé via MQTT en arrière-plan ^| OK
 
 5+|
 
 5+|Commentaire :
-Quand on sollicite un changement d'état, le signal est envoyé. Pour que l'interface s'actualise, on reçoit la réponse qui confirme le changement d'état (5 secondes de délai d'actualisation)
+Lors d’un changement d’état, un signal est envoyé. L’application se met à jour lorsqu’elle reçoit le message MQTT (≈5 secondes).
 |====
+
