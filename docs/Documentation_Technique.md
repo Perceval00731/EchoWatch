@@ -103,11 +103,3 @@ Remarque : les versions exactes peuvent se trouver dans `libraries/` (fichiers `
 
 ## 10. Évolutivité
 - Le projet est conçu pour être extensible : ajouter capteurs, services réseau, ou fonctions audio additionnelles (ex. streaming multipiste, queue de lecture). L'architecture modulaire (NetworkManager, AudioControl, LampControl, GyroPublisher) facilite l'extension.
-
----
-
-Si tu veux, je peux :
-- extraire automatiquement une section "Commandes MQTT et formats JSON" plus formelle (avec exemples exacts),
-- ajouter un petit guide de debug (commandes `mosquitto_pub` / `mosquitto_sub` pour tester les topics),
-- ou générer des tests unitaires simulant `AudioControl` pour valider les heuristiques de `handleAudioPlaybackState()`.
-Dis‑moi quelle option tu préfères et je l'ajoute.
