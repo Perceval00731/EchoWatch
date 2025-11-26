@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <ctype.h>
 #include <string.h>
 #include <time.h>
@@ -13,11 +14,16 @@
 #include "ui.h"
 
 namespace {
-constexpr const char* WIFI_SSID = "L'espoir fait vivre";
-constexpr const char* WIFI_PASSWORD = "ekip31470";
+constexpr const char* WIFI_SSID = "ssidreseau";
+constexpr const char* WIFI_PASSWORD = "motdepassereseau";
 
 constexpr const char* MQTT_SERVER = "broker.emqx.io";
-constexpr uint16_t MQTT_PORT = 1883;
+// constexpr const char* MQTT_SERVER = "test.mosquitto.org";
+// constexpr const char* MQTT_SERVER = "public.cloud.shiftr.io";
+// constexpr const char* MQTT_SERVER = "broker.hivemq.com";
+// constexpr const char* MQTT_SERVER = "iot.coreflux.cloud";
+
+constexpr uint16_t MQTT_PORT = 8883; //pour connexion sans tls utiliser 1883
 
 constexpr const char* MQTT_AUDIO_REQUEST_TOPIC = "esp32/audio/request";
 constexpr const char* MQTT_AUDIO_RESPONSE_TOPIC = "esp32/audio/response";
@@ -29,7 +35,7 @@ constexpr int DAYLIGHT_OFFSET_SEC = 3600;
 constexpr unsigned long WIFI_RETRY_INTERVAL_MS = 5000;
 constexpr unsigned long MQTT_RETRY_INTERVAL_MS = 3000;
 
-WiFiClient g_wifiClient;
+WiFiClientSecure g_wifiClient;
 PubSubClient g_mqttClient(g_wifiClient);
 
 bool g_wifiConnected = false;
@@ -356,6 +362,7 @@ void mqttCallback(char* topic, uint8_t* payload, unsigned int length) {
 }  // namespace
 
 void NetworkManager_begin() {
+  g_wifiClient.setInsecure();
   g_mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   g_mqttClient.setCallback(mqttCallback);
   startWiFiAttempt();

@@ -8,7 +8,7 @@
 
 // Configuration globale des capteurs
 SensorConfig g_sensorConfig = {
-    .periodicity_ms = 1000,    // 1 seconde par défaut
+    .periodicity_ms = 10000,    // 10 secondes par défaut
     .timeout_ms = 5000,        // 5 secondes de timeout par défaut
     .last_publish_time = 0,
     .enabled = true
